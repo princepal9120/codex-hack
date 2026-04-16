@@ -20,7 +20,9 @@ import {
   formatTaskTimestamp,
   getTaskIdentifier,
   isTerminalStatus,
+  runTask,
   retryTask,
+  TASK_REFRESH_INTERVAL_MS,
   type TaskRecord,
   type TaskSource,
 } from "@/components/task-api";
@@ -36,6 +38,7 @@ export default function TaskDetail({ id }: TaskDetailProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [running, setRunning] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
   const loadTask = useCallback(
@@ -70,13 +73,29 @@ export default function TaskDetail({ id }: TaskDetailProps) {
 
     const interval = window.setInterval(() => {
       void loadTask(true);
-    }, 3000);
+    }, TASK_REFRESH_INTERVAL_MS);
 
     return () => window.clearInterval(interval);
   }, [loadTask, task]);
 
+  const handleRun = useCallback(async () => {
+    if (!task || task.status !== "queued" || running) return;
+
+    setRunning(true);
+
+    try {
+      const nextTask = await runTask(task.id);
+      setTask(nextTask);
+      setMessage(null);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to start the task.");
+    } finally {
+      setRunning(false);
+    }
+  }, [running, task]);
+
   const handleRetry = useCallback(async () => {
-    if (!task || retrying) return;
+    if (!task || !isTerminalStatus(task.status) || retrying) return;
 
     setRetrying(true);
 
@@ -90,6 +109,32 @@ export default function TaskDetail({ id }: TaskDetailProps) {
       setRetrying(false);
     }
   }, [retrying, task]);
+
+  const action = useMemo(() => {
+    if (!task) {
+      return null;
+    }
+
+    if (task.status === "queued") {
+      return {
+        icon: RefreshCw,
+        label: running ? "Starting…" : "Start task",
+        onClick: handleRun,
+        disabled: running,
+      };
+    }
+
+    if (isTerminalStatus(task.status)) {
+      return {
+        icon: RotateCcw,
+        label: retrying ? "Retrying…" : "Retry task",
+        onClick: handleRetry,
+        disabled: retrying,
+      };
+    }
+
+    return null;
+  }, [handleRetry, handleRun, retrying, running, task]);
 
   const summaryMeta = useMemo(() => {
     if (!task) return [];
@@ -163,14 +208,16 @@ export default function TaskDetail({ id }: TaskDetailProps) {
         badge={source === "api" ? "Live task" : "API unavailable"}
         meta={summaryMeta}
         actions={
-          <Button
-            className="gap-2 bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-violet-500/20"
-            onClick={handleRetry}
-            disabled={retrying}
-          >
-            <RotateCcw className={`h-4 w-4 ${retrying ? "animate-spin" : ""}`} />
-            {retrying ? "Retrying…" : "Retry task"}
-          </Button>
+          action ? (
+            <Button
+              className="gap-2 bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-violet-500/20"
+              onClick={action.onClick}
+              disabled={action.disabled}
+            >
+              <action.icon className={`h-4 w-4 ${action.disabled ? "animate-spin" : ""}`} />
+              {action.label}
+            </Button>
+          ) : undefined
         }
       />
 
