@@ -1,9 +1,10 @@
 'use client';
 
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, FolderPlus, Github, Layers, Loader2, Plus, Workflow } from 'lucide-react';
 
-import { connectGitHub, fetchRepositories, isGitHubConnected, type GitHubRepository } from '@/components/github-api';
+import { connectGitHub, fetchGitHubAuthStatus, fetchRepositories, type GitHubRepository } from '@/components/github-api';
 import { createProject, fetchProjects, type ProjectRecord } from '@/components/project-api';
 import { formatTaskTimestamp } from '@/components/task-api';
 import Shell from '@/components/Shell';
@@ -26,29 +27,39 @@ export default function ProjectsPage() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState(initialForm);
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [setupStep, setSetupStep] = useState<SetupStep>('unauthenticated');
   const [repos, setRepos] = useState<GitHubRepository[]>([]);
   const [loadingRepos, setLoadingRepos] = useState(false);
+  const [githubConfigured, setGitHubConfigured] = useState(true);
 
   useEffect(() => {
     let active = true;
-    void fetchProjects()
-      .then((nextProjects) => {
+
+    const bootstrap = async () => {
+      try {
+        const [nextProjects, authStatus] = await Promise.all([fetchProjects(), fetchGitHubAuthStatus()]);
         if (!active) return;
+
         setProjects(nextProjects);
-      })
-      .catch((loadError) => {
+        setGitHubConfigured(authStatus.configured);
+
+        if (authStatus.connected) {
+          setSetupStep('repo-list');
+          await loadRepositories();
+        }
+      } catch (loadError) {
         if (!active) return;
         setError(loadError instanceof Error ? loadError.message : 'Failed to load projects.');
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoading(false);
-      });
+      }
+    };
 
-    if (isGitHubConnected()) {
-      setSetupStep('repo-list');
-      void loadRepositories();
-    }
+    void bootstrap();
 
     return () => {
       active = false;
@@ -67,15 +78,27 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleConnectGitHub = async () => {
-    setIsSubmitting(true);
-    try {
-      await connectGitHub();
-      setSetupStep('repo-list');
-      await loadRepositories();
-    } finally {
-      setIsSubmitting(false);
+  useEffect(() => {
+    const githubError = searchParams.get('github_error');
+    const githubConnected = searchParams.get('github_connected');
+
+    if (!githubError && !githubConnected) {
+      return;
     }
+
+    if (githubError) {
+      setError(githubError);
+    } else if (githubConnected) {
+      setError(null);
+    }
+
+    router.replace(pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  const handleConnectGitHub = () => {
+    setIsSubmitting(true);
+    setError(null);
+    connectGitHub();
   };
 
   const summary = useMemo(() => {
@@ -138,8 +161,13 @@ export default function ProjectsPage() {
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   Connect your GitHub account to easily import existing repositories into CodexFlow.
                 </p>
+                {!githubConfigured && (
+                  <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                    GitHub OAuth is not configured yet. Add <code className="font-mono text-[12px]">GITHUB_CLIENT_ID</code> and <code className="font-mono text-[12px]">GITHUB_CLIENT_SECRET</code>, then register <code className="font-mono text-[12px]">/api/github/auth/callback</code> as your callback URL.
+                  </div>
+                )}
                 <div className="mt-8">
-                  <Button onClick={handleConnectGitHub} disabled={isSubmitting} className="w-full sm:w-auto gap-2">
+                  <Button onClick={handleConnectGitHub} disabled={isSubmitting || !githubConfigured} className="w-full sm:w-auto gap-2">
                     <Github className="h-4 w-4" />
                     {isSubmitting ? 'Connecting…' : 'Continue with GitHub'}
                   </Button>

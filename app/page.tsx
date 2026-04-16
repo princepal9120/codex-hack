@@ -26,11 +26,13 @@ import {
   type TaskRecord,
   type TaskSource,
 } from "@/components/task-api";
+import OnboardingModal from '@/components/OnboardingModal';
 
 export default function LandingPage() {
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [source, setSource] = useState<TaskSource>("api");
   const [loading, setLoading] = useState(true);
+  const [isOnboardOpen, setIsOnboardOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -81,18 +83,16 @@ export default function LandingPage() {
           </p>
 
           <div className="fade-up fade-up-delay-3 opacity-0 mt-10 flex flex-wrap items-center justify-center gap-4">
+            <Button onClick={() => setIsOnboardOpen(true)} className="h-12 bg-emerald-600 hover:bg-emerald-700 text-white gap-2 px-6 text-base font-semibold">
+              <Github className="h-4 w-4" />
+              Onboard Project
+            </Button>
             <Link href="/board">
-              <Button className="h-12 gap-2 px-6 text-base font-semibold">
+              <Button variant="outline" className="h-12 gap-2 px-6 text-base font-semibold">
                 View Demo
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" className="h-12 gap-2 px-6 text-base font-semibold">
-                <Github className="h-4 w-4" />
-                View GitHub
-              </Button>
-            </a>
           </div>
 
           {/* Stats */}
@@ -258,6 +258,8 @@ export default function LandingPage() {
           </div>
         </footer>
       </div>
+
+      <OnboardingModal open={isOnboardOpen} onOpenChange={setIsOnboardOpen} />
     </main>
   );
 }
