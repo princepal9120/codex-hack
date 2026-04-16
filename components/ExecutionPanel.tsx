@@ -1,4 +1,4 @@
-import { formatTaskTimestamp, type TaskRecord } from "@/components/task-api";
+import { formatTaskTimestamp, getFailureClassificationLabel, type TaskRecord } from "@/components/task-api";
 
 interface ExecutionPanelProps {
   task: TaskRecord;
@@ -6,7 +6,13 @@ interface ExecutionPanelProps {
 
 export default function ExecutionPanel({ task }: ExecutionPanelProps) {
   const hasExecutionOutput = Boolean(
-    task.codexOutput || task.errorMessage || task.runStartedAt || task.runFinishedAt || task.executionMode || task.contextSummary
+    task.codexOutput ||
+      task.errorMessage ||
+      task.runStartedAt ||
+      task.runFinishedAt ||
+      task.executionMode ||
+      task.contextSummary ||
+      task.statusSummary
   );
 
   if (!hasExecutionOutput) {
@@ -40,15 +46,29 @@ export default function ExecutionPanel({ task }: ExecutionPanelProps) {
           <p className="mt-1 text-sm text-gray-900">{task.executionMode || "Unknown"}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Context summary</p>
-          <p className="mt-1 text-sm text-gray-900">{task.contextSummary || "No context summary captured yet."}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Current status</p>
+          <p className="mt-1 text-sm text-gray-900">{task.statusSummary || "Execution details are still loading."}</p>
         </div>
       </div>
 
-      {task.errorMessage ? (
-        <div className="border-t border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">
-          {task.errorMessage}
+      <div className="border-t border-gray-200 px-6 py-5">
+        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Context summary</p>
+        <p className="mt-1 text-sm text-gray-900">{task.contextSummary || "No context summary captured yet."}</p>
+      </div>
+
+      {task.failureSignal ? (
+        <div className="border-t border-red-200 bg-red-50 px-6 py-4 text-sm text-red-800">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-white/80 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-700">
+              {getFailureClassificationLabel(task.failureSignal.classification)}
+            </span>
+            <p className="font-medium">{task.failureSignal.summary}</p>
+          </div>
+          {task.failureSignal.detail ? <p className="mt-2 text-red-700/90">{task.failureSignal.detail}</p> : null}
+          {task.failureSignal.action ? <p className="mt-2 text-xs text-red-700/80">Next step: {task.failureSignal.action}</p> : null}
         </div>
+      ) : task.errorMessage ? (
+        <div className="border-t border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">{task.errorMessage}</div>
       ) : null}
 
       <div className="border-t border-gray-200 bg-gray-50 p-4">
