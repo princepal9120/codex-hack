@@ -30,6 +30,7 @@ CodexFlow is a clean, technical interface for AI coding task execution that make
 - Sample task execution preview
 - Call-to-action buttons
 - Live board and task-detail routes wired to the task API
+- Live task summary sourced from `GET /api/tasks` on page load
 
 ### Task Board
 - 5-column Kanban view: Queued, Running, Passed, Failed, Needs Review
@@ -37,6 +38,8 @@ CodexFlow is a clean, technical interface for AI coding task execution that make
 - Status badges with color coding
 - Score display for completed tasks
 - Empty state messages
+- Live collection backed by `GET /api/tasks`
+- Selected-card previews are currently derived from the collection payload, not a dedicated detail fetch
 
 ### Task Detail View
 - Full task information and prompt
@@ -45,6 +48,8 @@ CodexFlow is a clean, technical interface for AI coding task execution that make
 - Verification status (lint, tests)
 - Execution logs
 - Task metadata
+- Polls `GET /api/tasks/[id]` every 3 seconds while work is active
+- Retry action is wired to `POST /api/tasks/[id]/retry`
 
 ### Create Task Modal
 - Intuitive form with fields for:
@@ -78,6 +83,8 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 If you want to run this project through **Multica** with a **Codex** agent on your own machine, use the project guide in [`docs/multica-codex-setup.md`](docs/multica-codex-setup.md).
 
+For the current frontend/backend wiring contract, including landing/board/detail refresh behavior and the `/run` versus `/retry` API distinction, see [`docs/frontend-backend-connectivity.md`](docs/frontend-backend-connectivity.md).
+
 That guide covers:
 - installing Multica and Codex
 - connecting your machine as a runtime
@@ -89,7 +96,7 @@ That guide covers:
 
 ```
 ├── app/                         # Next.js App Router pages + API routes
-│   ├── api/tasks/               # Task list/detail/run/retry/timeline endpoints
+│   ├── api/tasks/               # Task list/detail/retry/run/timeline endpoints
 │   ├── board/page.tsx           # Live task board route
 │   ├── tasks/[id]/page.tsx      # Live task detail route
 │   ├── onboarding/page.tsx      # Operator onboarding route
@@ -97,6 +104,7 @@ That guide covers:
 ├── components/                  # Shared UI and task-detail panels
 ├── engine/                      # Python execution engine (scan/rank/prompt/verify)
 ├── features/dashboard/          # Board + task detail client views
+├── docs/frontend-backend-connectivity.md # Frontend/backend wiring reference
 ├── lib/server/                  # SQLite task persistence + execution queue
 ├── data/                        # SQLite database files
 ├── codexflow.config.json        # Safe repo + verification command config
