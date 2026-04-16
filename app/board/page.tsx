@@ -454,27 +454,27 @@ export default function BoardPage() {
               <section className="flex flex-col border-b border-white/[0.06] lg:border-b-0 lg:border-r lg:border-r-white/[0.06] lg:h-screen lg:overflow-hidden">
                 <div className="border-b border-white/[0.06] px-5 py-4">
                   <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h1 className="text-lg font-bold tracking-tight text-white">Tasks</h1>
-                    <p className="mt-1 text-sm text-white/40">
-                      {sortedTasks.length} tasks · live sync every {TASK_REFRESH_INTERVAL_MS / 1000}s
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ViewToggle mode={viewMode} onChange={setViewMode} />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void loadTasks(true)}
-                      disabled={refreshingList}
-                      className="h-8 gap-1.5 border-white/[0.1] text-white/70 hover:bg-white/[0.06] hover:text-white"
-                    >
-                      <RefreshCw className={`h-3.5 w-3.5 ${refreshingList ? "animate-spin" : ""}`} />
-                      Refresh
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setIsCreateModalOpen(true)}
+                    <div>
+                      <h1 className="text-lg font-bold tracking-tight text-white">Tasks</h1>
+                      <p className="mt-1 text-sm text-white/40">
+                        {sortedTasks.length} tasks · live sync every {TASK_REFRESH_INTERVAL_MS / 1000}s
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <ViewToggle mode={viewMode} onChange={setViewMode} />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void loadTasks(true)}
+                        disabled={refreshingList}
+                        className="h-8 gap-1.5 border-white/[0.1] text-white/70 hover:bg-white/[0.06] hover:text-white"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${refreshingList ? "animate-spin" : ""}`} />
+                        Refresh
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => setIsCreateModalOpen(true)}
                         className="h-8 gap-1.5 bg-violet-600 text-white hover:bg-violet-700"
                       >
                         <Plus className="h-3.5 w-3.5" />
@@ -544,6 +544,27 @@ export default function BoardPage() {
                             <span className="text-xs text-white/50">Confidence</span>
                             <span className="font-semibold text-white">{getConfidenceLabel(selectedTask.score)}</span>
                           </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void loadSelectedTask(true)}
+                            disabled={refreshingDetail}
+                            className="gap-1.5 border-white/[0.1] text-white/70 hover:bg-white/[0.06] hover:text-white"
+                          >
+                            <RefreshCw className={`h-3.5 w-3.5 ${refreshingDetail ? "animate-spin" : ""}`} />
+                            Refresh
+                          </Button>
+                          {selectedTaskAction ? (
+                            <Button
+                              size="sm"
+                              onClick={selectedTaskAction.onClick}
+                              disabled={selectedTaskAction.disabled}
+                              className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700"
+                            >
+                              <selectedTaskAction.icon className={`h-3.5 w-3.5 ${selectedTaskAction.disabled ? "animate-spin" : ""}`} />
+                              {selectedTaskAction.label}
+                            </Button>
+                          ) : null}
                           <Link href={`/tasks/${selectedTask.id}`}>
                             <Button size="sm" variant="outline" className="gap-1.5 border-white/[0.1] text-white/70 hover:bg-white/[0.06] hover:text-white">
                               Full view
@@ -553,6 +574,12 @@ export default function BoardPage() {
                         </div>
                       </div>
                     </div>
+
+                    {detailMessage ? (
+                      <div className="border-b border-amber-900/30 bg-amber-950/20 px-6 py-2.5 text-sm text-amber-200/80">
+                        {detailMessage}
+                      </div>
+                    ) : null}
 
                     <div className="flex-1 overflow-y-auto">
                       <div className="grid divide-y divide-white/[0.06] lg:grid-cols-2 lg:divide-x lg:divide-y-0">
@@ -570,6 +597,7 @@ export default function BoardPage() {
                               status={getConfidenceStatus(selectedTask.score)}
                               value={selectedTask.score !== null ? `${selectedTask.score}/100` : "Pending"}
                             />
+                            <KeyValueRow label="Data source" value={detailSource === "api" ? "Live API" : "Fallback data"} />
                           </div>
                         </DetailSection>
                       </div>
@@ -609,6 +637,23 @@ export default function BoardPage() {
                       </div>
 
                       <div className="grid divide-y divide-white/[0.06] border-t border-white/[0.06] lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+                        <DetailSection title="Timeline" eyebrow="Run history">
+                          <div className="space-y-2">
+                            {selectedTask.timeline.length > 0 ? (
+                              selectedTask.timeline.slice(-5).reverse().map((event) => (
+                                <div key={event.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <p className="text-xs font-medium text-white/80">{event.title}</p>
+                                    <span className="text-[10px] text-white/35">{formatTaskTimestamp(event.createdAt)}</span>
+                                  </div>
+                                  <p className="mt-1.5 text-xs leading-5 text-white/45">{event.detail}</p>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-xs text-white/30">No timeline events yet.</p>
+                            )}
+                          </div>
+                        </DetailSection>
                         <DetailSection title="Diff" eyebrow="Patch">
                           <pre className="overflow-x-auto rounded-lg border border-white/[0.06] bg-black/40 p-4 text-[11px] leading-5">
                             {getPatchPreview(selectedTask).split("\n").map((line, i) => (
@@ -629,6 +674,9 @@ export default function BoardPage() {
                             ))}
                           </pre>
                         </DetailSection>
+                      </div>
+
+                      <div className="grid divide-y divide-white/[0.06] border-t border-white/[0.06] lg:grid-cols-2 lg:divide-x lg:divide-y-0">
                         <DetailSection title="Logs" eyebrow="Output">
                           <div className="space-y-2">
                             <LogBlock title="Lint" body={selectedTask.lintOutput} />
