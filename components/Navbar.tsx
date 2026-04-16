@@ -18,6 +18,10 @@ export default function Navbar() {
   const pathname = usePathname();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  if (pathname.startsWith("/board")) {
+    return null;
+  }
+
   return (
     <>
       <nav className="sticky top-0 z-40 border-b border-[#e8e0d4] bg-[rgba(249,246,241,0.82)] backdrop-blur-xl">
