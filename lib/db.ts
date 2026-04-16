@@ -60,7 +60,10 @@ function extractLegacyProjectRepoPath(value: unknown) {
 }
 
 function getDatabasePath() {
-  const dataDir = path.join(process.cwd(), "data");
+  // Vercel serverless functions have a read-only filesystem except /tmp.
+  // Use /tmp on Vercel, otherwise use the project-local data/ directory.
+  const base = process.env.VERCEL ? "/tmp" : process.cwd();
+  const dataDir = path.join(base, "data");
   fs.mkdirSync(dataDir, { recursive: true });
   return path.join(dataDir, "codexflow.sqlite");
 }
