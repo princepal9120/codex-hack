@@ -22,6 +22,19 @@ export async function GET(_request: Request, { params }: TaskRouteContext) {
 }
 
 export async function POST(_request: Request, { params }: TaskRouteContext) {
+  const current = getTaskById(params.id);
+
+  if (!current) {
+    return NextResponse.json({ error: "Task not found." }, { status: 404 });
+  }
+
+  if (current.status !== "passed" && current.status !== "failed" && current.status !== "needs_review") {
+    return NextResponse.json(
+      { error: "Only completed tasks can be retried from this endpoint. Use /run for queued tasks." },
+      { status: 409 }
+    );
+  }
+
   const task = resetTaskForRetry(params.id);
 
   if (!task) {

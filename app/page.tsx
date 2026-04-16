@@ -22,6 +22,7 @@ import {
 
 import { Button } from "@/components/ui/Button";
 import {
+  TASK_REFRESH_INTERVAL_MS,
   fetchTasks,
   formatTaskTimestamp,
   getConfidenceLabel,
@@ -46,8 +47,13 @@ export default function LandingPage() {
     };
 
     void load();
+    const interval = window.setInterval(() => {
+      void load();
+    }, TASK_REFRESH_INTERVAL_MS);
+
     return () => {
       active = false;
+      window.clearInterval(interval);
     };
   }, []);
 
@@ -235,6 +241,14 @@ export default function LandingPage() {
             <div className="mt-12 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
               {/* Featured task preview */}
               <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg shadow-gray-900/5">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-violet-600">
+                    Live task stream
+                  </p>
+                  <span className="text-xs text-gray-400">
+                    Refreshes every {TASK_REFRESH_INTERVAL_MS / 1000}s
+                  </span>
+                </div>
                 {loading ? (
                   <div className="flex h-64 items-center justify-center text-sm text-gray-400">
                     Loading task data…
