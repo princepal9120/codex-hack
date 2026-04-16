@@ -8,7 +8,6 @@ import {
   Command,
   FolderKanban,
   Home,
-  Monitor,
   Search,
   Settings,
   Sparkles,
@@ -28,7 +27,6 @@ const workspaceNav = [
 ];
 
 const configNav = [
-  { id: "runtimes", label: "Runtimes", icon: Monitor, href: "/runtimes" },
   { id: "skills", label: "Skills", icon: Sparkles, href: "/skills" },
   { id: "settings", label: "Settings", icon: Settings, href: "/settings" },
 ];

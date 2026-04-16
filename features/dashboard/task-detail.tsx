@@ -19,8 +19,9 @@ import {
   fetchTask,
   formatTaskTimestamp,
   getTaskIdentifier,
-  getTaskKindLabel,
   isTerminalStatus,
+  runTask,
+  TASK_REFRESH_INTERVAL_MS,
   retryTask,
   type TaskRecord,
   type TaskSource,
@@ -31,12 +32,49 @@ interface TaskDetailProps {
   id: string;
 }
 
+function isMockExecution(task: TaskRecord) {
+  return task.executionMode.trim().toLowerCase() === 'mock';
+}
+
+function getTaskSourceBadge(task: TaskRecord, source: TaskSource) {
+  if (source === 'mock') {
+    return 'Demo data';
+  }
+
+  if (isMockExecution(task)) {
+    return 'Sample task';
+  }
+
+  return 'Live task';
+}
+
+function getTaskSourceNotice(task: TaskRecord, source: TaskSource) {
+  if (source === 'mock') {
+    return {
+      title: 'Bundled demo data',
+      body: 'The task API is unavailable right now, so this detail view is showing bundled demo content instead of live board data.',
+      className: 'border-amber-200 bg-amber-50 text-amber-900',
+    };
+  }
+
+  if (isMockExecution(task)) {
+    return {
+      title: 'Sample task on a live route',
+      body: 'This task was loaded from the live board, but its execution history and verification output are demo/mock artifacts for the hackathon sample dataset.',
+      className: 'border-violet-200 bg-violet-50 text-violet-900',
+    };
+  }
+
+  return null;
+}
+
 export default function TaskDetail({ id }: TaskDetailProps) {
   const [task, setTask] = useState<TaskRecord | null>(null);
   const [source, setSource] = useState<TaskSource>('api');
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [running, setRunning] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
   const loadTask = useCallback(async (background = false) => {
@@ -68,10 +106,28 @@ export default function TaskDetail({ id }: TaskDetailProps) {
 
     const interval = window.setInterval(() => {
       void loadTask(true);
-    }, 3000);
+    }, TASK_REFRESH_INTERVAL_MS);
 
     return () => window.clearInterval(interval);
   }, [loadTask, task]);
+
+  const handleRun = useCallback(async () => {
+    if (!task || task.status !== 'queued' || running) {
+      return;
+    }
+
+    setRunning(true);
+
+    try {
+      const nextTask = await runTask(task.id);
+      setTask(nextTask);
+      setMessage(null);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to start the task.');
+    } finally {
+      setRunning(false);
+    }
+  }, [running, task]);
 
   const handleRetry = useCallback(async () => {
     if (!task || retrying) {
@@ -90,6 +146,32 @@ export default function TaskDetail({ id }: TaskDetailProps) {
     }
   }, [retrying, task]);
 
+  const action = useMemo(() => {
+    if (!task) {
+      return null;
+    }
+
+    if (task.status === 'queued') {
+      return {
+        icon: RefreshCw,
+        label: running ? 'Starting…' : 'Start task',
+        onClick: handleRun,
+        disabled: running,
+      };
+    }
+
+    if (isTerminalStatus(task.status)) {
+      return {
+        icon: RotateCcw,
+        label: retrying ? 'Retrying…' : 'Retry task',
+        onClick: handleRetry,
+        disabled: retrying,
+      };
+    }
+
+    return null;
+  }, [handleRetry, handleRun, retrying, running, task]);
+
   const summaryMeta = useMemo(() => {
     if (!task) {
       return [];
@@ -97,8 +179,8 @@ export default function TaskDetail({ id }: TaskDetailProps) {
 
     return [
       { label: 'Status', value: <StatusPill status={task.status} /> },
-      { label: 'Project', value: task.projectName || 'Unassigned' },
-      { label: 'Item type', value: getTaskKindLabel(task.taskKind) },
+      { label: 'Repo target', value: task.repoPath || '.' },
+      { label: 'Selected files', value: `${task.selectedFiles.length} files` },
       { label: 'Last updated', value: formatTaskTimestamp(task.updatedAt) },
     ];
   }, [task]);
@@ -134,7 +216,7 @@ export default function TaskDetail({ id }: TaskDetailProps) {
     );
   }
 
-  const isMockTask = source === 'mock' || task.executionMode.startsWith('mock');
+  const sourceNotice = getTaskSourceNotice(task, source);
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8 pb-16">
@@ -155,25 +237,22 @@ export default function TaskDetail({ id }: TaskDetailProps) {
         eyebrow={getTaskIdentifier(task.id)}
         title={task.title}
         description={task.prompt}
-        badge={isMockTask ? 'Preview mode' : 'Live task'}
+        badge={getTaskSourceBadge(task, source)}
         meta={summaryMeta}
         actions={
-          <>
-            <Button variant="outline" className="gap-2" onClick={() => void loadTask(true)} disabled={refreshing}>
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
+          action ? (
+            <Button className="gap-2" onClick={action.onClick} disabled={action.disabled}>
+              <action.icon className={`h-4 w-4 ${action.disabled ? 'animate-spin' : ''}`} />
+              {action.label}
             </Button>
-            <Button className="gap-2" onClick={handleRetry} disabled={retrying}>
-              <RotateCcw className={`h-4 w-4 ${retrying ? 'animate-spin' : ''}`} />
-              {retrying ? 'Retrying…' : `Retry ${getTaskKindLabel(task.taskKind)}`}
-            </Button>
-          </>
+          ) : undefined
         }
       />
 
-      {isMockTask ? (
-        <div className="mt-6 rounded-[var(--radius)] border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          This item is running in preview mode. CodexFlow still captures context selection, prompt preview, diff preview, and verification evidence so the workflow stays reviewable.
+      {sourceNotice ? (
+        <div className={`mt-6 rounded-xl border px-4 py-3 ${sourceNotice.className}`}>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em]">{sourceNotice.title}</p>
+          <p className="mt-1.5 text-sm leading-6">{sourceNotice.body}</p>
         </div>
       ) : null}
 
@@ -195,9 +274,8 @@ export default function TaskDetail({ id }: TaskDetailProps) {
           <SurfaceCard eyebrow="Run summary" title="Execution overview" description="Operator-facing facts before diving into the patch preview and raw outputs." tone="soft">
             <div className="grid gap-3 md:grid-cols-2">
               <SummaryTile label="Status" value={<StatusPill status={task.status} />} />
-              <SummaryTile label="Item type" value={getTaskKindLabel(task.taskKind)} />
-              <SummaryTile label="Project" value={task.projectName || 'Unassigned'} />
               <SummaryTile label="Repo target" value={task.repoPath || '.'} />
+              <SummaryTile label="Selected files" value={`${task.selectedFiles.length} files`} />
               <SummaryTile label="Execution mode" value={task.executionMode || 'Pending'} />
               <SummaryTile label="Lint command" value={task.lintCommand || 'Server default'} />
               <SummaryTile label="Test command" value={task.testCommand || 'Server default'} />

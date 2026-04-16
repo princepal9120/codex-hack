@@ -19,11 +19,10 @@ export default function Navbar() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const isDashboard = pathname.startsWith("/board") ||
-                      pathname.startsWith("/projects") ||
-                      pathname.startsWith("/runtimes") ||
-                      pathname.startsWith("/skills") ||
-                      pathname.startsWith("/settings") ||
-                      pathname.startsWith("/tasks");
+    pathname.startsWith("/projects") ||
+    pathname.startsWith("/skills") ||
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/tasks");
 
   if (isDashboard) {
     return null;
