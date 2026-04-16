@@ -1,47 +1,51 @@
-import Link from "next/link";
-import { CheckCircle2, Clock3, Files, ShieldAlert } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Link from 'next/link';
+import { CheckCircle2, Clock3, Files, ShieldAlert } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 import {
   formatTaskTimestamp,
   getConfidenceLabel,
   getTaskIdentifier,
+  getTaskKindLabel,
   type TaskRecord,
-} from "@/components/task-api";
+} from '@/components/task-api';
 
 interface TaskCardProps {
   task: TaskRecord;
+  isSelected?: boolean;
+  onSelect?: (task: TaskRecord) => void;
 }
 
-export default function TaskCard({ task }: TaskCardProps) {
-
-
+export default function TaskCard({ task, isSelected = false, onSelect }: TaskCardProps) {
   const verificationLabel =
-    task.lintStatus === "failed" || task.testStatus === "failed"
-      ? "Verify failed"
-      : task.lintStatus === "passed" && task.testStatus === "passed"
-        ? "Verified"
-        : "Pending";
+    task.lintStatus === 'failed' || task.testStatus === 'failed'
+      ? 'Verify failed'
+      : task.lintStatus === 'passed' && task.testStatus === 'passed'
+        ? 'Verified'
+        : 'Pending';
 
   const VerificationIcon =
-    task.lintStatus === "failed" || task.testStatus === "failed"
+    task.lintStatus === 'failed' || task.testStatus === 'failed'
       ? ShieldAlert
-      : task.lintStatus === "passed" && task.testStatus === "passed"
+      : task.lintStatus === 'passed' && task.testStatus === 'passed'
         ? CheckCircle2
         : Clock3;
 
   return (
-    <Link href={`/tasks/${task.id}`} className="group block">
-      <article className="rounded-lg border border-border bg-card p-4 shadow-xs transition-all duration-150 hover:shadow-md hover:border-ring/30 group-focus-visible:ring-2 group-focus-visible:ring-ring/40 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-background">
-        {/* Header: ID + Score */}
+    <Link href={`/tasks/${task.id}`} className="group block" onClick={() => onSelect?.(task)}>
+      <article className={cn(
+        'rounded-lg border border-border bg-card p-4 shadow-xs transition-all duration-150 hover:border-ring/30 hover:shadow-md group-focus-visible:ring-2 group-focus-visible:ring-ring/40 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-background',
+        isSelected && 'border-primary/40 ring-2 ring-primary/15'
+      )}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              {getTaskIdentifier(task.id)}
-            </p>
-            <h3 className="mt-1.5 text-[14px] font-semibold leading-5 text-foreground line-clamp-2">
-              {task.title}
-            </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{getTaskIdentifier(task.id)}</p>
+              <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-secondary-foreground">
+                {getTaskKindLabel(task.taskKind)}
+              </span>
+            </div>
+            <h3 className="mt-1.5 line-clamp-2 text-[14px] font-semibold leading-5 text-foreground">{task.title}</h3>
           </div>
           {task.score !== null && (
             <span className="shrink-0 rounded-[var(--radius)] bg-secondary px-2 py-0.5 text-[11px] font-semibold tabular-nums text-secondary-foreground">
@@ -50,12 +54,14 @@ export default function TaskCard({ task }: TaskCardProps) {
           )}
         </div>
 
-        {/* Prompt preview */}
+        {task.projectName && (
+          <p className="mt-2 text-[11px] font-medium text-primary">{task.projectName}</p>
+        )}
+
         <p className="mt-2 line-clamp-2 text-[12px] leading-[18px] text-muted-foreground">
           {task.contextSummary || task.prompt}
         </p>
 
-        {/* Meta row */}
         <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
           {task.selectedFiles.length > 0 && (
             <>
@@ -72,16 +78,11 @@ export default function TaskCard({ task }: TaskCardProps) {
           </span>
         </div>
 
-        {/* Footer: Confidence + Updated */}
-        <div className="mt-3 flex items-center justify-between gap-2 pt-3 border-t border-border">
-          <span className="text-[11px] font-medium text-foreground">
-            {getConfidenceLabel(task.score)}
-          </span>
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
+          <span className="text-[11px] font-medium text-foreground">{getConfidenceLabel(task.score)}</span>
           <div className="flex items-center gap-2">
-            <span className={cn("inline-flex h-1.5 w-1.5 rounded-full", task.status === "running" ? "bg-blue-500 status-pulse" : task.status === "passed" ? "bg-green-500" : task.status === "failed" ? "bg-red-500" : task.status === "needs_review" ? "bg-amber-500" : "bg-muted-foreground")} />
-            <span className="text-[11px] text-muted-foreground">
-              {formatTaskTimestamp(task.updatedAt)}
-            </span>
+            <span className={cn('inline-flex h-1.5 w-1.5 rounded-full', task.status === 'running' ? 'status-pulse bg-blue-500' : task.status === 'passed' ? 'bg-green-500' : task.status === 'failed' ? 'bg-red-500' : task.status === 'needs_review' ? 'bg-amber-500' : 'bg-muted-foreground')} />
+            <span className="text-[11px] text-muted-foreground">{formatTaskTimestamp(task.updatedAt)}</span>
           </div>
         </div>
       </article>

@@ -8,10 +8,12 @@ import {
   Bot,
   Check,
   ChevronLeft,
+  Copy,
   FileSearch,
   FolderGit2,
   ShieldCheck,
   Sparkles,
+  Terminal,
   TerminalSquare,
   Workflow,
 } from "lucide-react";
@@ -35,12 +37,16 @@ const steps = [
 ] as const;
 
 const runtimeCommands = [
-  { label: "Run the app locally", command: "npm run dev" },
-  { label: "Lint before trust", command: "npm run lint" },
-  { label: "Exercise the Python engine", command: "python3 -m unittest discover -s tests" },
+  { label: "Verify Codex CLI", command: "codex --help" },
+  { label: "Verify Multica CLI", command: "multica --help" },
+  { label: "Connect the runtime", command: "multica setup" },
 ] as const;
 
 const detectedTools = ["Next.js 14", "TypeScript", "Python", "SQLite", "Codex"] as const;
+const optionalCliOverrides = [
+  'export MULTICA_CODEX_PATH="$(which codex)"',
+  'export MULTICA_CODEX_MODEL="gpt-5.4"',
+] as const;
 
 const starterTemplates = [
   {
@@ -313,6 +319,39 @@ export default function OnboardingFlow() {
                 </div>
               </div>
 
+              <div className="mt-6 grid gap-5 lg:grid-cols-[1.08fr_0.92fr]">
+                <div className="rounded-[1.5rem] border border-[#e6ded3] bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-2 text-[#746b60]">
+                    <Terminal className="h-4 w-4" />
+                    <p className="text-[0.68rem] uppercase tracking-[0.24em]">Multica-style CLI handoff</p>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {runtimeCommands.map((item, index) => (
+                      <CommandBlock key={item.command} label={`${index + 1}. ${item.label}`} command={item.command} />
+                    ))}
+                  </div>
+                  <p className="mt-4 text-sm leading-6 text-[#6f675d]">
+                    This mirrors Multica&apos;s onboarding rhythm: verify the CLIs, run the single setup command, then let the board/detail flow prove the result inside CodexFlow.
+                  </p>
+                </div>
+
+                <div className="rounded-[1.5rem] border border-[#e6ded3] bg-[#faf6f0] p-5">
+                  <div className="flex items-center gap-2 text-[#746b60]">
+                    <Bot className="h-4 w-4" />
+                    <p className="text-[0.68rem] uppercase tracking-[0.24em]">Optional Codex overrides</p>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {optionalCliOverrides.map((command) => (
+                      <CommandBlock key={command} label="Optional environment override" command={command} subtle />
+                    ))}
+                  </div>
+                  <div className="mt-5 space-y-3">
+                    <ChecklistRow>Use `multica setup` when you want the same fast setup flow as Multica.</ChecklistRow>
+                    <ChecklistRow>Use CodexFlow&apos;s starter task to prove repo context, prompt preview, and verification in one pass.</ChecklistRow>
+                  </div>
+                </div>
+              </div>
+
               <StepActions>
                 <Button variant="ghost" onClick={goBack} className="gap-2">
                   <ChevronLeft className="h-4 w-4" />
@@ -439,6 +478,15 @@ export default function OnboardingFlow() {
                       <p>Repo: {repoPath.trim() || "."}</p>
                       <p>Lint: {safeDefaults.lintCommand}</p>
                       <p>Tests: {safeDefaults.testCommand}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-[1.25rem] border border-[#e3ddd2] bg-white px-4 py-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-[#8b8378]">CLI checkpoints</p>
+                    <div className="mt-3 space-y-2">
+                      {runtimeCommands.map((item) => (
+                        <CommandBlock key={item.command} label={item.label} command={item.command} compact />
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -598,4 +646,50 @@ function ReadonlyStat({ icon, label, value, helper }: { icon: ReactNode; label: 
 
 function StepActions({ children }: { children: ReactNode }) {
   return <div className="mt-8 flex flex-wrap items-center justify-between gap-3">{children}</div>;
+}
+
+function CommandBlock({
+  label,
+  command,
+  compact = false,
+  subtle = false,
+}: {
+  label: string;
+  command: string;
+  compact?: boolean;
+  subtle?: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <div
+      className={cn(
+        "rounded-[1.2rem] border px-4 py-3",
+        subtle ? "border-[#eadfce] bg-[#fffdf9]" : "border-[#e6ded3] bg-white",
+        compact ? "py-2.5" : "py-3"
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f5efe7] text-[#6f675d]">
+          <Terminal className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs uppercase tracking-[0.18em] text-[#8b8378]">{label}</p>
+          <code className="mt-2 block break-all font-mono-ui text-sm leading-6 text-[#1f1c17]">{command}</code>
+        </div>
+        <button
+          type="button"
+          onClick={async () => {
+            await navigator.clipboard.writeText(command);
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1800);
+          }}
+          className="rounded-full border border-[#e6ded3] bg-white p-2 text-[#6f675d] transition-colors hover:border-[#cfc5b8] hover:text-[#1f1c17]"
+          aria-label={`Copy command: ${command}`}
+        >
+          {copied ? <Check className="h-4 w-4 text-[#176757]" /> : <Copy className="h-4 w-4" />}
+        </button>
+      </div>
+    </div>
+  );
 }

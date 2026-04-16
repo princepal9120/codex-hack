@@ -1,5 +1,6 @@
 'use client';
 
+import { type ReactNode } from "react";
 import Shell from "@/components/Shell";
 import { Shield, Bell, Database } from "lucide-react";
 
@@ -42,7 +43,7 @@ export default function SettingsPage() {
   );
 }
 
-function SettingsRow({ icon, title, desc }: { icon: React.ReactNode; title: string, desc: string }) {
+function SettingsRow({ icon, title, desc }: { icon: ReactNode; title: string, desc: string }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/30">
       <div className="flex items-center gap-4">

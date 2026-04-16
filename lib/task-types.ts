@@ -1,4 +1,5 @@
 export type TaskStatus = "queued" | "running" | "passed" | "failed" | "needs_review";
+export type TaskKind = "issue" | "report" | "task";
 export type CheckStatus = "passed" | "failed" | "pending";
 export type TaskEventPhase = "task" | "context" | "execution" | "verification";
 export type TaskEventLevel = "info" | "success" | "warning" | "error";
@@ -39,11 +40,27 @@ export interface TaskFailureSignal {
   detectedAt: string;
 }
 
+export interface ProjectRecord {
+  id: string;
+  name: string;
+  slug: string;
+  repoPath: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+  taskCount: number;
+  openTaskCount: number;
+  lastActivityAt: string | null;
+}
+
 export interface TaskRecord {
   id: string;
   title: string;
   prompt: string;
   status: TaskStatus;
+  taskKind: TaskKind;
+  projectId: string | null;
+  projectName: string | null;
   repoPath: string;
   createdAt: string;
   updatedAt: string;
@@ -73,9 +90,17 @@ export interface TaskRecord {
 export interface CreateTaskInput {
   title: string;
   prompt: string;
+  projectId?: string;
+  taskKind?: TaskKind;
   repoPath?: string;
   lintCommand?: string;
   testCommand?: string;
+}
+
+export interface CreateProjectInput {
+  name: string;
+  repoPath?: string;
+  description?: string;
 }
 
 export interface RunTaskResult {

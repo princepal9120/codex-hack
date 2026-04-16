@@ -7,6 +7,8 @@ import { type TaskRecord, type TaskStatus } from "@/components/task-api";
 interface TaskColumnProps {
   status: TaskStatus;
   tasks: TaskRecord[];
+  selectedTaskId?: string | null;
+  onSelectTask?: (task: TaskRecord) => void;
 }
 
 const columnConfig: Record<TaskStatus, {
@@ -41,7 +43,7 @@ const columnConfig: Record<TaskStatus, {
   },
 };
 
-export default function TaskColumn({ status, tasks }: TaskColumnProps) {
+export default function TaskColumn({ status, tasks, selectedTaskId, onSelectTask }: TaskColumnProps) {
   const config = columnConfig[status];
   const columnTasks = tasks.filter((t) => t.status === status);
 
@@ -67,7 +69,12 @@ export default function TaskColumn({ status, tasks }: TaskColumnProps) {
         ) : (
           <div className="space-y-2">
             {columnTasks.map((task) => (
-              <TaskCard key={task.id} task={task} />
+              <TaskCard
+                key={task.id}
+                task={task}
+                isSelected={task.id === selectedTaskId}
+                onSelect={onSelectTask}
+              />
             ))}
           </div>
         )}

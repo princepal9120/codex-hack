@@ -130,7 +130,7 @@ class FrontendBackendSmokeTests(unittest.TestCase):
             self.assertIsInstance(collection_before, dict)
             self.assertIn("tasks", collection_before)
 
-            for route in ("/", "/board"):
+            for route in ("/", "/board", "/onboarding"):
                 status_code, body = request_text(f"{server.base_url}{route}")
                 self.assertEqual(status_code, 200, msg=f"Expected {route} to return 200")
                 self.assertTrue(body, msg=f"Expected non-empty HTML response for {route}")

@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 
 import { getDb } from "@/lib/db";
+import { ensureSeedProjects, getDefaultProject, getProjectById } from "@/lib/server/project-store";
 import type {
   CreateTaskInput,
   SelectedFile,
   TaskEvent,
   TaskFailureSignal,
+  TaskKind,
   TaskRecord,
   TaskStatus,
 } from "@/lib/task-types";
@@ -15,6 +17,9 @@ interface TaskRow {
   title: string;
   prompt: string;
   status: TaskStatus;
+  project_id: string | null;
+  project_name: string | null;
+  task_kind: string;
   repo_path: string;
   created_at: string;
   updated_at: string;
@@ -162,11 +167,16 @@ function appendTaskEvent(task: TaskRecord, event: TaskEvent) {
   return [...task.timeline, event];
 }
 
-const seedTasks: Array<Omit<TaskRecord, "id">> = [
+function normalizeTaskKind(value: string | null | undefined): TaskKind {
+  return value === "task" || value === "report" || value === "issue" ? value : "issue";
+}
+
+const baseSeedTasks: Array<Omit<TaskRecord, "id" | "projectId" | "projectName">> = [
   {
-    title: "Add rate limiting to login endpoint",
-    prompt: "Add rate limiting to login endpoint and verify the implementation with lint/tests.",
+    title: "Triage failed runtime sandbox copy",
+    prompt: "Investigate why sandbox copies sometimes fail to initialize and capture the result as an issue for the runtime team.",
     status: "needs_review",
+    taskKind: "issue",
     repoPath: ".",
     createdAt: new Date("2026-04-15T10:00:00.000Z").toISOString(),
     updatedAt: new Date("2026-04-15T10:02:00.000Z").toISOString(),
@@ -175,30 +185,30 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
     score: 58,
     selectedFiles: [
       {
-        path: "app/api/auth/login/route.ts",
+        path: "app/runtimes/page.tsx",
         score: 94,
-        rationale: "Login route path matches the request directly and contains the auth flow entrypoint.",
-        matchedTerms: ["login", "endpoint"],
+        rationale: "Runtime configuration is the operator-facing page for sandbox issues and matches the reported area directly.",
+        matchedTerms: ["runtime", "sandbox"],
       },
       {
-        path: "lib/auth/rate-limit.ts",
+        path: "lib/server/run-task.ts",
         score: 88,
-        rationale: "Rate limit helper aligns with the change request and likely holds shared enforcement logic.",
-        matchedTerms: ["rate", "limit"],
+        rationale: "Task execution wiring is where sandbox startup and run lifecycle behavior is coordinated.",
+        matchedTerms: ["runtime", "task"],
       },
     ],
-    promptPreview: "System instruction...\nTask title: Add rate limiting to login endpoint\nSelected context: login route + rate-limit helper",
-    contextSummary: "CodexFlow selected the auth route plus the shared rate-limit helper because both path names and code excerpts matched the prompt.",
+    promptPreview: "System instruction...\nTask title: Triage failed runtime sandbox copy\nSelected context: runtimes page + task runner",
+    contextSummary: "CodexFlow selected the runtimes UI and execution pipeline because both directly influence sandbox setup and runtime issue visibility.",
     executionMode: "mock",
     codexOutput: "Mock execution completed without a live OpenAI key. Review the diff before applying it.",
-    diffOutput: "diff --git a/app/api/auth/login/route.ts b/app/api/auth/login/route.ts\n@@\n+// Add request throttling before credential validation\n",
-    patchSummary: "Add request throttling before login credential validation.",
+    diffOutput: "diff --git a/app/runtimes/page.tsx b/app/runtimes/page.tsx\n@@\n+// Surface sandbox copy failures in the operator panel\n",
+    patchSummary: "Expose runtime sandbox copy failures in the operator-facing UI.",
     lintStatus: "pending",
     testStatus: "pending",
     lintOutput: "Lint was not executed for the seed demo task.",
     testOutput: "Tests were not executed for the seed demo task.",
     verificationNotes: "Patch preview generated, but verification is still pending human review.",
-    logs: "Queued sample task for the board demo.",
+    logs: "Queued sample issue for the board demo.",
     errorMessage: null,
     lintCommand: null,
     testCommand: null,
@@ -207,8 +217,8 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
         phase: "task",
         kind: "task_created",
         level: "info",
-        title: "Task created",
-        detail: "Request captured with repo path and verification commands.",
+        title: "Issue created",
+        detail: "Issue captured with repo path and verification commands.",
         createdAt: new Date("2026-04-15T10:00:00.000Z").toISOString(),
       }),
       createTimelineEvent({
@@ -216,7 +226,7 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
         kind: "run_started",
         level: "info",
         title: "Run started",
-        detail: "CodexFlow started a preview-first execution for the task.",
+        detail: "CodexFlow started a preview-first execution for the issue.",
         createdAt: new Date("2026-04-15T10:00:30.000Z").toISOString(),
       }),
       createTimelineEvent({
@@ -241,16 +251,17 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
         kind: "verification_completed",
         level: "warning",
         title: "Verification pending",
-        detail: "Lint and tests were not run for this sample task.",
+        detail: "Lint and tests were not run for this sample issue.",
         createdAt: new Date("2026-04-15T10:02:00.000Z").toISOString(),
       }),
     ],
     failureSignal: null,
   },
   {
-    title: "Fix flaky task detail loading state",
-    prompt: "Stabilize the task detail loading state so repeated refreshes do not flash stale data.",
+    title: "Ship onboarding report for repo operators",
+    prompt: "Create a concise onboarding report that explains how repo operators should create issues, reports, and implementation tasks inside CodexFlow.",
     status: "passed",
+    taskKind: "report",
     repoPath: ".",
     createdAt: new Date("2026-04-14T12:15:00.000Z").toISOString(),
     updatedAt: new Date("2026-04-14T12:18:00.000Z").toISOString(),
@@ -259,29 +270,29 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
     score: 92,
     selectedFiles: [
       {
-        path: "app/tasks/[id]/page.tsx",
+        path: "app/onboarding/page.tsx",
         score: 97,
-        rationale: "The task detail route contains the loading-state logic called out in the prompt.",
-        matchedTerms: ["task", "detail", "loading"],
+        rationale: "The onboarding route is the strongest surface for operator guidance and report framing.",
+        matchedTerms: ["onboarding", "report"],
       },
       {
-        path: "components/VerificationPanel.tsx",
+        path: "README.md",
         score: 82,
-        rationale: "Verification UI is adjacent to the stale-data bug and helps validate post-refresh behavior.",
-        matchedTerms: ["refresh", "verification"],
+        rationale: "Repo-level docs help validate the report content and operator workflow framing.",
+        matchedTerms: ["report", "operators"],
       },
     ],
-    promptPreview: "System instruction...\nTask title: Fix flaky task detail loading state\nSelected context: task detail page + verification panel",
-    contextSummary: "The route page was ranked highest because it contains the loading state; the verification panel was included for adjacent refresh behavior.",
+    promptPreview: "System instruction...\nTask title: Ship onboarding report for repo operators\nSelected context: onboarding route + README",
+    contextSummary: "The onboarding route was ranked highest because it holds the guided operator flow, while the README validates the report language.",
     executionMode: "mock",
-    codexOutput: "Generated a small patch and verification passed.",
-    diffOutput: "diff --git a/app/tasks/[id]/page.tsx b/app/tasks/[id]/page.tsx\n@@\n-const task = staleCache[id];\n+const task = await fetchFreshTask(id);\n",
-    patchSummary: "Switch task detail reads from stale cache to a fresh fetch path.",
+    codexOutput: "Generated a small report patch and verification passed.",
+    diffOutput: "diff --git a/README.md b/README.md\n@@\n+## Operator report\n+Explain how to open issues, reports, and tasks in CodexFlow.\n",
+    patchSummary: "Add operator-facing workflow guidance for issues, reports, and tasks.",
     lintStatus: "passed",
     testStatus: "passed",
     lintOutput: "✓ No ESLint warnings or errors",
     testOutput: "✓ UI regression checks passed",
-    verificationNotes: "Verification cleared both lint and tests, so the run landed in passed.",
+    verificationNotes: "Verification cleared both lint and tests, so the report landed in passed.",
     logs: "✓ Lint passed\n✓ Tests passed\n✓ Patch preview generated",
     errorMessage: null,
     lintCommand: null,
@@ -291,8 +302,8 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
         phase: "task",
         kind: "task_created",
         level: "info",
-        title: "Task created",
-        detail: "Task queued for execution with verification commands.",
+        title: "Report created",
+        detail: "Report queued for execution with verification commands.",
         createdAt: new Date("2026-04-14T12:15:00.000Z").toISOString(),
       }),
       createTimelineEvent({
@@ -308,7 +319,7 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
         kind: "context_selected",
         level: "success",
         title: "Context selected",
-        detail: "The task detail page and verification panel ranked highest for the prompt.",
+        detail: "The onboarding route and README ranked highest for the report prompt.",
         createdAt: new Date("2026-04-14T12:16:00.000Z").toISOString(),
         metadata: { selectedFiles: 2 },
       }),
@@ -325,7 +336,7 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
         kind: "verification_completed",
         level: "success",
         title: "Verification passed",
-        detail: "Lint and tests both passed for the generated preview.",
+        detail: "Lint and tests both passed for the generated report preview.",
         createdAt: new Date("2026-04-14T12:18:00.000Z").toISOString(),
       }),
       createTimelineEvent({
@@ -333,16 +344,17 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
         kind: "run_completed",
         level: "success",
         title: "Run completed",
-        detail: "The task completed successfully with a verified patch preview.",
+        detail: "The report completed successfully with a verified patch preview.",
         createdAt: new Date("2026-04-14T12:18:00.000Z").toISOString(),
       }),
     ],
     failureSignal: null,
   },
   {
-    title: "Refactor repo scanner ignore rules",
-    prompt: "Refactor the repo scanner ignore rules to avoid indexing large build outputs.",
+    title: "Implement project creation flow",
+    prompt: "Add a real project creation flow so operators can group issues and reports before assigning them in the board.",
     status: "failed",
+    taskKind: "task",
     repoPath: ".",
     createdAt: new Date("2026-04-13T08:30:00.000Z").toISOString(),
     updatedAt: new Date("2026-04-13T08:36:00.000Z").toISOString(),
@@ -351,30 +363,30 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
     score: 34,
     selectedFiles: [
       {
-        path: "engine/repo_scanner.py",
+        path: "app/projects/page.tsx",
         score: 96,
-        rationale: "The scanner implementation directly controls ignore rules and was the highest lexical match.",
-        matchedTerms: ["scanner", "ignore"],
+        rationale: "The projects page directly controls the operator flow for project creation and grouping.",
+        matchedTerms: ["project", "creation"],
       },
       {
-        path: "codexflow.config.json",
+        path: "components/CreateTaskModal.tsx",
         score: 75,
-        rationale: "Repo-level config may define scanning limits and ignore-adjacent behavior.",
-        matchedTerms: ["config"],
+        rationale: "Task creation needs project assignment if project grouping is going to work end to end.",
+        matchedTerms: ["project", "task"],
       },
     ],
-    promptPreview: "System instruction...\nTask title: Refactor repo scanner ignore rules\nSelected context: scanner module + repo config",
-    contextSummary: "CodexFlow prioritized the scanner module and config because both likely influence indexing and ignored outputs.",
+    promptPreview: "System instruction...\nTask title: Implement project creation flow\nSelected context: projects page + task modal",
+    contextSummary: "CodexFlow prioritized the projects page and task modal because both are required for a working project-aware kanban flow.",
     executionMode: "mock",
-    codexOutput: "Attempted scanner update, but verification failed.",
-    diffOutput: "diff --git a/engine/repo_scanner.py b/engine/repo_scanner.py\n@@\n+IGNORED_DIRECTORIES.add('coverage')\n",
-    patchSummary: "Add coverage to ignored directories before repository indexing.",
+    codexOutput: "Attempted project flow update, but verification failed.",
+    diffOutput: "diff --git a/app/projects/page.tsx b/app/projects/page.tsx\n@@\n+// Persist new project cards and counts\n",
+    patchSummary: "Add a persistent project creation and board-grouping flow.",
     lintStatus: "failed",
     testStatus: "failed",
-    lintOutput: "engine/repo_scanner.py: import resolution failed",
-    testOutput: "Repo scanner regression suite failed with missing import paths.",
+    lintOutput: "app/projects/page.tsx: form state was incomplete",
+    testOutput: "Project creation smoke path failed to save the new project.",
     verificationNotes: "The patch preview exists, but verification failed and the task requires investigation.",
-    logs: "Command failed: scanner hit a missing import during verification.",
+    logs: "Command failed: project creation hit a missing persistence path during verification.",
     errorMessage: "Verification failed during sample seed generation.",
     lintCommand: null,
     testCommand: null,
@@ -384,7 +396,7 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
         kind: "task_created",
         level: "info",
         title: "Task created",
-        detail: "Task queued for execution with scanner-focused verification.",
+        detail: "Task queued for execution with project-focused verification.",
         createdAt: new Date("2026-04-13T08:30:00.000Z").toISOString(),
       }),
       createTimelineEvent({
@@ -400,7 +412,7 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
         kind: "context_selected",
         level: "success",
         title: "Context selected",
-        detail: "The repo scanner implementation and config were selected for prompt context.",
+        detail: "The projects page and task modal were selected for prompt context.",
         createdAt: new Date("2026-04-13T08:32:00.000Z").toISOString(),
         metadata: { selectedFiles: 2 },
       }),
@@ -432,7 +444,7 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
     failureSignal: {
       category: "verification",
       summary: "Verification failed after patch generation",
-      detail: "The generated preview existed, but lint and test checks both failed for the scanner update.",
+      detail: "The generated preview existed, but lint and test checks both failed for the project flow update.",
       detectedAt: new Date("2026-04-13T08:36:00.000Z").toISOString(),
     },
   },
@@ -444,6 +456,9 @@ function rowToTask(row: TaskRow): TaskRecord {
     title: row.title,
     prompt: row.prompt,
     status: row.status,
+    taskKind: normalizeTaskKind(row.task_kind),
+    projectId: row.project_id,
+    projectName: row.project_name,
     repoPath: row.repo_path,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -477,6 +492,8 @@ function taskToParams(task: TaskRecord) {
     title: task.title,
     prompt: task.prompt,
     status: task.status,
+    project_id: task.projectId,
+    task_kind: task.taskKind,
     repo_path: task.repoPath,
     created_at: task.createdAt,
     updated_at: task.updatedAt,
@@ -505,6 +522,7 @@ function taskToParams(task: TaskRecord) {
 }
 
 export function ensureSeedTasks() {
+  ensureSeedProjects();
   const db = getDb();
   const count = (db.prepare("SELECT COUNT(*) as count FROM tasks").get() as { count: number }).count;
 
@@ -512,47 +530,72 @@ export function ensureSeedTasks() {
     return;
   }
 
+  const defaultProject = getDefaultProject();
+
   const insert = db.prepare(`
     INSERT INTO tasks (
-      id, title, prompt, status, repo_path, created_at, updated_at, run_started_at, run_finished_at,
+      id, title, prompt, status, project_id, task_kind, repo_path, created_at, updated_at, run_started_at, run_finished_at,
       score, selected_files_json, prompt_preview, context_summary, execution_mode, codex_output, diff_output, patch_summary,
       lint_status, test_status, lint_output, test_output, verification_notes, logs,
       error_message, lint_command, test_command, timeline_json, failure_signal_json
     ) VALUES (
-      :id, :title, :prompt, :status, :repo_path, :created_at, :updated_at, :run_started_at, :run_finished_at,
+      :id, :title, :prompt, :status, :project_id, :task_kind, :repo_path, :created_at, :updated_at, :run_started_at, :run_finished_at,
       :score, :selected_files_json, :prompt_preview, :context_summary, :execution_mode, :codex_output, :diff_output, :patch_summary,
       :lint_status, :test_status, :lint_output, :test_output, :verification_notes, :logs,
       :error_message, :lint_command, :test_command, :timeline_json, :failure_signal_json
     )
   `);
 
-  for (const task of seedTasks) {
-    insert.run(taskToParams({ ...task, id: randomUUID() }));
+  for (const task of baseSeedTasks) {
+    insert.run(taskToParams({
+      ...task,
+      id: randomUUID(),
+      projectId: defaultProject?.id ?? null,
+      projectName: defaultProject?.name ?? null,
+    }));
   }
+}
+
+function selectTasksSql(whereClause = "", orderClause = "ORDER BY t.updated_at DESC") {
+  return `
+    SELECT t.*, p.name AS project_name
+    FROM tasks t
+    LEFT JOIN projects p ON p.id = t.project_id
+    ${whereClause}
+    ${orderClause}
+  `;
 }
 
 export function listTasks() {
   ensureSeedTasks();
   const db = getDb();
-  const rows = db.prepare("SELECT * FROM tasks ORDER BY updated_at DESC").all() as TaskRow[];
+  const rows = db.prepare(selectTasksSql()).all() as TaskRow[];
   return rows.map(rowToTask);
 }
 
 export function getTaskById(id: string) {
   ensureSeedTasks();
   const db = getDb();
-  const row = db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as TaskRow | undefined;
+  const row = db.prepare(selectTasksSql("WHERE t.id = ?", "")).get(id) as TaskRow | undefined;
   return row ? rowToTask(row) : null;
 }
 
 export function createTask(input: CreateTaskInput) {
+  ensureSeedTasks();
   const db = getDb();
   const now = new Date().toISOString();
+  const project = input.projectId ? getProjectById(input.projectId) : null;
+  const taskKind = normalizeTaskKind(input.taskKind);
+  const taskLabel = taskKind === "issue" ? "Issue" : taskKind === "report" ? "Report" : "Task";
+
   const task: TaskRecord = {
     id: randomUUID(),
     title: input.title.trim(),
     prompt: input.prompt.trim(),
     status: "queued",
+    taskKind,
+    projectId: project?.id ?? null,
+    projectName: project?.name ?? null,
     repoPath: input.repoPath?.trim() || ".",
     createdAt: now,
     updatedAt: now,
@@ -571,7 +614,7 @@ export function createTask(input: CreateTaskInput) {
     lintOutput: "",
     testOutput: "",
     verificationNotes: "Patch preview first. No repository changes are auto-applied.",
-    logs: "Task created and waiting to run. Patch previews are generated before any human review.",
+    logs: `${taskLabel} created and waiting to run. Patch previews are generated before any human review.`,
     errorMessage: null,
     lintCommand: input.lintCommand?.trim() || null,
     testCommand: input.testCommand?.trim() || null,
@@ -580,12 +623,13 @@ export function createTask(input: CreateTaskInput) {
         phase: "task",
         kind: "task_created",
         level: "info",
-        title: "Task created",
-        detail: "Task captured and queued for preview-first execution.",
+        title: `${taskLabel} created`,
+        detail: `${taskLabel} captured and queued for preview-first execution.`,
         createdAt: now,
         metadata: {
           hasLintCommand: Boolean(input.lintCommand?.trim()),
           hasTestCommand: Boolean(input.testCommand?.trim()),
+          hasProject: Boolean(project),
         },
       }),
     ],
@@ -594,12 +638,12 @@ export function createTask(input: CreateTaskInput) {
 
   db.prepare(`
     INSERT INTO tasks (
-      id, title, prompt, status, repo_path, created_at, updated_at, run_started_at, run_finished_at,
+      id, title, prompt, status, project_id, task_kind, repo_path, created_at, updated_at, run_started_at, run_finished_at,
       score, selected_files_json, prompt_preview, context_summary, execution_mode, codex_output, diff_output, patch_summary,
       lint_status, test_status, lint_output, test_output, verification_notes, logs,
       error_message, lint_command, test_command, timeline_json, failure_signal_json
     ) VALUES (
-      :id, :title, :prompt, :status, :repo_path, :created_at, :updated_at, :run_started_at, :run_finished_at,
+      :id, :title, :prompt, :status, :project_id, :task_kind, :repo_path, :created_at, :updated_at, :run_started_at, :run_finished_at,
       :score, :selected_files_json, :prompt_preview, :context_summary, :execution_mode, :codex_output, :diff_output, :patch_summary,
       :lint_status, :test_status, :lint_output, :test_output, :verification_notes, :logs,
       :error_message, :lint_command, :test_command, :timeline_json, :failure_signal_json
@@ -628,6 +672,8 @@ export function updateTask(id: string, updates: Partial<TaskRecord>) {
       title = :title,
       prompt = :prompt,
       status = :status,
+      project_id = :project_id,
+      task_kind = :task_kind,
       repo_path = :repo_path,
       created_at = :created_at,
       updated_at = :updated_at,
@@ -680,7 +726,7 @@ export function resetTaskForRetry(id: string) {
     lintOutput: "",
     testOutput: "",
     verificationNotes: "Task re-queued. A fresh patch preview will be generated before trust.",
-    logs: "Task queued for retry. CodexFlow will rescan the repository and generate a fresh patch preview.",
+    logs: `${current.taskKind === "issue" ? "Issue" : current.taskKind === "report" ? "Report" : "Task"} queued for retry. CodexFlow will rescan the repository and generate a fresh patch preview.`,
     errorMessage: null,
     runStartedAt: null,
     runFinishedAt: null,

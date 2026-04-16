@@ -1,4 +1,5 @@
 export type TaskStatus = "queued" | "running" | "passed" | "failed" | "needs_review";
+export type TaskKind = "issue" | "report" | "task";
 export type VerificationStatus = "passed" | "failed" | "pending";
 export type TaskSource = "api" | "mock";
 export type TaskBadgeVariant = "primary" | "secondary" | "queued" | "running" | "passed" | "failed" | "warning";
@@ -48,6 +49,9 @@ export interface TaskRecord {
   title: string;
   prompt: string;
   status: TaskStatus;
+  taskKind: TaskKind;
+  projectId: string | null;
+  projectName: string | null;
   score: number | null;
   selectedFiles: TaskFile[];
   promptPreview: string;
@@ -89,6 +93,8 @@ export interface TaskDetailResult {
 export interface CreateTaskInput {
   title: string;
   prompt: string;
+  projectId?: string;
+  taskKind?: TaskKind;
   repoPath?: string;
   lintCommand?: string;
   testCommand?: string;
@@ -164,6 +170,17 @@ export function getVerificationMeta(status: VerificationStatus): { label: string
   }
 }
 
+export function getTaskKindLabel(taskKind: TaskKind) {
+  switch (taskKind) {
+    case "issue":
+      return "Issue";
+    case "report":
+      return "Report";
+    case "task":
+      return "Task";
+  }
+}
+
 async function parseResponse(response: Response) {
   const contentType = response.headers.get("content-type") ?? "";
 
@@ -211,6 +228,17 @@ function toTaskStatus(value: unknown): TaskStatus {
       return "needs_review";
     default:
       return "queued";
+  }
+}
+
+function toTaskKind(value: unknown): TaskKind {
+  switch (typeof value === "string" ? value.toLowerCase() : "") {
+    case "issue":
+    case "report":
+    case "task":
+      return value as TaskKind;
+    default:
+      return "issue";
   }
 }
 
@@ -455,6 +483,15 @@ function normalizeTask(raw: unknown): TaskRecord {
       (typeof record.description === "string" && record.description) ||
       "No prompt provided.",
     status,
+    taskKind: toTaskKind(record.taskKind ?? record.task_kind ?? record.kind),
+    projectId:
+      (typeof record.projectId === "string" && record.projectId) ||
+      (typeof record.project_id === "string" && record.project_id) ||
+      null,
+    projectName:
+      (typeof record.projectName === "string" && record.projectName) ||
+      (typeof record.project_name === "string" && record.project_name) ||
+      null,
     score: typeof rawScore === "number" ? rawScore : null,
     selectedFiles,
     promptPreview:

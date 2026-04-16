@@ -4,6 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 
 let database: DatabaseSync | null = null;
 const TASK_COLUMN_DEFINITIONS: Record<string, string> = {
+  project_id: "TEXT",
+  task_kind: "TEXT NOT NULL DEFAULT 'issue'",
   prompt_preview: "TEXT NOT NULL DEFAULT ''",
   context_summary: "TEXT NOT NULL DEFAULT ''",
   execution_mode: "TEXT NOT NULL DEFAULT ''",
@@ -25,11 +27,23 @@ function initialize(db: DatabaseSync) {
   db.exec(`
     PRAGMA journal_mode = WAL;
 
+    CREATE TABLE IF NOT EXISTS projects (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      repo_path TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       prompt TEXT NOT NULL,
       status TEXT NOT NULL,
+      project_id TEXT,
+      task_kind TEXT NOT NULL DEFAULT 'issue',
       repo_path TEXT NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -53,7 +67,8 @@ function initialize(db: DatabaseSync) {
       lint_command TEXT,
       test_command TEXT,
       timeline_json TEXT NOT NULL DEFAULT '[]',
-      failure_signal_json TEXT
+      failure_signal_json TEXT,
+      FOREIGN KEY (project_id) REFERENCES projects(id)
     );
   `);
 
