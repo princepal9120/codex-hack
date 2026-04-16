@@ -4,26 +4,18 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-violet-600 focus:ring-offset-2",
+  "inline-flex items-center rounded-full px-3 py-1 text-[0.68rem] font-medium uppercase tracking-[0.16em] transition-colors focus:outline-none focus:ring-2 focus:ring-[#57d1c4]/70 focus:ring-offset-2 focus:ring-offset-[#090b0f]",
   {
     variants: {
       variant: {
-        default:
-          "border border-gray-200 bg-white text-gray-900",
-        primary:
-          "border border-transparent bg-violet-600 text-white hover:bg-violet-700",
-        secondary:
-          "border border-transparent bg-gray-100 text-gray-900 hover:bg-gray-200",
-        queued:
-          "border border-transparent bg-gray-100 text-gray-700",
-        running:
-          "border border-transparent bg-blue-100 text-blue-700",
-        passed:
-          "border border-transparent bg-green-100 text-green-700",
-        failed:
-          "border border-transparent bg-red-100 text-red-700",
-        warning:
-          "border border-transparent bg-amber-100 text-amber-700",
+        default: "border border-white/10 bg-white/[0.04] text-[#eef2f7]",
+        primary: "border border-transparent bg-[#57d1c4] text-[#081013]",
+        secondary: "border border-transparent bg-white/[0.08] text-[#eef2f7]",
+        queued: "border border-transparent bg-white/[0.08] text-[#c7ced8]",
+        running: "border border-transparent bg-[#112423] text-[#57d1c4]",
+        passed: "border border-transparent bg-[#16241c] text-[#7bf2b4]",
+        failed: "border border-transparent bg-[#2a1719] text-[#f6a4a4]",
+        warning: "border border-transparent bg-[#2b2413] text-[#f7d879]",
       },
     },
     defaultVariants: {
