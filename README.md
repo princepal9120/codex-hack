@@ -73,6 +73,17 @@ npm start
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+## Use CodexFlow with Multica + Codex
+
+If you want to run this project through **Multica** with a **Codex** agent on your own machine, use the project guide in [`docs/multica-codex-setup.md`](docs/multica-codex-setup.md).
+
+That guide covers:
+- installing Multica and Codex
+- connecting your machine as a runtime
+- creating a Codex agent for this repo
+- assigning CodexFlow issues in Multica
+- repo-specific verification commands and prompts
+
 ### Project Structure
 
 ```
