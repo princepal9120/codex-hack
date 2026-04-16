@@ -31,14 +31,25 @@ export default function OnboardingFlow() {
     <main className="px-6 py-10">
       <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.82fr_1.18fr]">
         <section className="lg:sticky lg:top-10 lg:h-fit">
-          <p className="text-[0.72rem] uppercase tracking-[0.3em] text-[#7b8794]">Onboarding</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-[0.72rem] uppercase tracking-[0.3em] text-[#7b8794]">Onboarding</p>
+            <span className="rounded-full border border-[#f3c87a]/30 bg-[#f3c87a]/10 px-3 py-1 text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-[#f3c87a]">
+              Concept demo
+            </span>
+          </div>
           <h1 className="font-display mt-4 text-balance text-5xl leading-[0.95] text-white sm:text-6xl">
             Bring the first runtime online without losing the plot.
           </h1>
           <p className="mt-6 max-w-lg text-lg leading-8 text-[#9aa6b2]">
-            This flow borrows the sharp, guided onboarding feel from Multica and adapts it to CodexFlow.
-            The goal is a clean handoff from signup to the first verified task.
+            This concept walkthrough borrows the sharp, guided onboarding feel from Multica and adapts it to
+            CodexFlow. It previews the intended setup journey, but it does not provision a real workspace or
+            runtime yet.
           </p>
+
+          <div className="mt-6 rounded-[1.6rem] border border-[#f3c87a]/20 bg-[#f3c87a]/8 p-4 text-sm leading-6 text-[#f6d79a]">
+            Demo only: the steps, install command, and workspace settings below are illustrative product direction
+            for the hackathon build, not a live onboarding flow.
+          </div>
 
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/board">
@@ -60,7 +71,8 @@ export default function OnboardingFlow() {
               <code className="font-mono-ui text-sm text-[#dce3eb]">codexflow setup --runtime local</code>
             </div>
             <p className="mt-4 text-sm leading-6 text-[#9aa6b2]">
-              Runtime discovery, CLI verification, and board linking happen in the same guided pass.
+              Illustrative only — runtime discovery, CLI verification, and board linking are not wired from this
+              page yet.
             </p>
           </div>
         </section>
@@ -83,7 +95,7 @@ export default function OnboardingFlow() {
                 <h2 className="mt-3 text-xl text-white">First-run configuration</h2>
               </div>
               <p className="text-sm leading-7 text-[#9aa6b2]">
-                A compact setup surface keeps the critical decisions visible: workspace name, machine identity,
+                This mock setup surface keeps the critical decisions visible: workspace name, machine identity,
                 agent role, and the checks required before a task can exit review.
               </p>
             </div>
