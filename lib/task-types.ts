@@ -5,6 +5,8 @@ export interface SelectedFile {
   path: string;
   score: number;
   excerpt?: string;
+  rationale?: string;
+  matchedTerms?: string[];
 }
 
 export interface TaskRecord {
@@ -19,10 +21,17 @@ export interface TaskRecord {
   runFinishedAt: string | null;
   score: number;
   selectedFiles: SelectedFile[];
+  promptPreview: string;
+  contextSummary: string;
+  executionMode: string;
   codexOutput: string;
   diffOutput: string;
+  patchSummary: string;
   lintStatus: CheckStatus;
   testStatus: CheckStatus;
+  lintOutput: string;
+  testOutput: string;
+  verificationNotes: string;
   logs: string;
   errorMessage: string | null;
   lintCommand: string | null;
@@ -41,10 +50,17 @@ export interface RunTaskResult {
   status: TaskStatus;
   score: number;
   selectedFiles: SelectedFile[];
+  promptPreview: string;
+  contextSummary: string;
+  executionMode: string;
   codexOutput: string;
   diffOutput: string;
+  patchSummary: string;
   lintStatus: CheckStatus;
   testStatus: CheckStatus;
+  lintOutput: string;
+  testOutput: string;
+  verificationNotes: string;
   logs: string;
   errorMessage?: string | null;
 }

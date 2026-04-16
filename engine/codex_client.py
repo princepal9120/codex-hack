@@ -51,6 +51,11 @@ def call_openai(prompt: str) -> str:
 
 def generate_patch(task_title: str, prompt: str, ranked_files: list[RankedFile]) -> dict[str, str]:
     execution_mode = os.getenv('CODEXFLOW_EXECUTION_MODE', 'mock').lower()
+    patch_summary = (
+        f"Patch preview targets {ranked_files[0]['path']} first."
+        if ranked_files
+        else 'Patch preview fell back to README.md because no relevant files were ranked.'
+    )
 
     if execution_mode != 'openai':
         diff = build_mock_diff(task_title, ranked_files)
@@ -58,6 +63,7 @@ def generate_patch(task_title: str, prompt: str, ranked_files: list[RankedFile])
             'mode': 'mock',
             'codex_output': 'Mock Codex execution used. Set CODEXFLOW_EXECUTION_MODE=openai and OPENAI_API_KEY to enable live model calls.',
             'diff_output': diff,
+            'patch_summary': patch_summary,
         }
 
     try:
@@ -66,6 +72,7 @@ def generate_patch(task_title: str, prompt: str, ranked_files: list[RankedFile])
             'mode': 'openai',
             'codex_output': output or 'OpenAI response returned no text.',
             'diff_output': output or build_mock_diff(task_title, ranked_files),
+            'patch_summary': patch_summary,
         }
     except (RuntimeError, urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as error:
         diff = build_mock_diff(task_title, ranked_files)
@@ -73,4 +80,5 @@ def generate_patch(task_title: str, prompt: str, ranked_files: list[RankedFile])
             'mode': 'mock-fallback',
             'codex_output': f'Fell back to mock execution after OpenAI call failed: {error}',
             'diff_output': diff,
+            'patch_summary': patch_summary,
         }

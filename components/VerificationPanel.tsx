@@ -49,6 +49,27 @@ export default function VerificationPanel({ task }: VerificationPanelProps) {
           <span className="text-xs text-gray-600">{getStatusText(task.testStatus)}</span>
         </div>
       </div>
+      {task.verificationNotes ? (
+        <div className="border-t border-blue-200 bg-blue-50 px-6 py-4 text-sm text-blue-900">
+          {task.verificationNotes}
+        </div>
+      ) : null}
+      {task.lintOutput ? (
+        <div className="border-t border-gray-200 bg-gray-50 p-4">
+          <p className="mb-2 text-xs font-medium text-gray-900">Lint Output</p>
+          <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs text-gray-600 font-mono">
+            {task.lintOutput}
+          </pre>
+        </div>
+      ) : null}
+      {task.testOutput ? (
+        <div className="border-t border-gray-200 bg-gray-50 p-4">
+          <p className="mb-2 text-xs font-medium text-gray-900">Test Output</p>
+          <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs text-gray-600 font-mono">
+            {task.testOutput}
+          </pre>
+        </div>
+      ) : null}
       {task.logs ? (
         <div className="border-t border-gray-200 bg-gray-50 p-4">
           <p className="mb-2 text-xs font-medium text-gray-900">Logs</p>

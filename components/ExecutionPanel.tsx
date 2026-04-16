@@ -5,7 +5,9 @@ interface ExecutionPanelProps {
 }
 
 export default function ExecutionPanel({ task }: ExecutionPanelProps) {
-  const hasExecutionOutput = Boolean(task.codexOutput || task.errorMessage || task.runStartedAt || task.runFinishedAt);
+  const hasExecutionOutput = Boolean(
+    task.codexOutput || task.errorMessage || task.runStartedAt || task.runFinishedAt || task.executionMode || task.contextSummary
+  );
 
   if (!hasExecutionOutput) {
     return null;
@@ -29,6 +31,17 @@ export default function ExecutionPanel({ task }: ExecutionPanelProps) {
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Run Finished</p>
           <p className="mt-1 text-sm text-gray-900">{task.runFinishedAt ? formatTaskTimestamp(task.runFinishedAt) : "Still running"}</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 border-t border-gray-200 px-6 py-5 sm:grid-cols-2">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Execution mode</p>
+          <p className="mt-1 text-sm text-gray-900">{task.executionMode || "Unknown"}</p>
+        </div>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Context summary</p>
+          <p className="mt-1 text-sm text-gray-900">{task.contextSummary || "No context summary captured yet."}</p>
         </div>
       </div>
 

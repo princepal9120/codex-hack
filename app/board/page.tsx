@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import TaskColumn from "@/components/TaskColumn";
 import { Button } from "@/components/ui/Button";
-import { fetchTasks, formatTaskTimestamp, isTerminalStatus, type TaskRecord, type TaskSource } from "@/components/task-api";
-import { RotateCcw } from "lucide-react";
+import { fetchTasks, formatTaskTimestamp, getConfidenceLabel, isTerminalStatus, type TaskRecord, type TaskSource } from "@/components/task-api";
+import { AlertTriangle, Radar, RotateCcw } from "lucide-react";
 
 const columns = [
   { status: "queued", title: "Queued" },
@@ -59,11 +59,21 @@ export default function BoardPage() {
       total: tasks.length,
       running: tasks.filter((task) => task.status === "running").length,
       queued: tasks.filter((task) => task.status === "queued").length,
+      attention: tasks.filter((task) => task.status === "failed" || task.status === "needs_review").length,
       passingRate:
         tasks.length > 0
           ? Math.round((tasks.filter((task) => task.status === "passed").length / tasks.length) * 100)
           : 0,
+      avgFiles:
+        tasks.length > 0
+          ? Math.round(tasks.reduce((sum, task) => sum + task.selectedFiles.length, 0) / tasks.length)
+          : 0,
     }),
+    [tasks]
+  );
+
+  const attentionTasks = useMemo(
+    () => tasks.filter((task) => task.status === "failed" || task.status === "needs_review").slice(0, 3),
     [tasks]
   );
 
@@ -111,6 +121,58 @@ export default function BoardPage() {
             <p className="text-xs font-medium uppercase tracking-wide text-green-700">Passing Rate</p>
             <p className="mt-3 text-3xl font-semibold text-green-900">{stats.passingRate}%</p>
           </div>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Needs Attention</p>
+            <p className="mt-3 text-3xl font-semibold text-amber-900">{stats.attention}</p>
+          </div>
+        </section>
+
+        <section className="mb-8 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <Radar className="h-5 w-5 text-violet-600" />
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Context intelligence</h2>
+                <p className="text-sm text-gray-600">Show why CodexFlow chose this repo slice before execution.</p>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <MetricTile label="Avg files / run" value={String(stats.avgFiles)} helper="Repo context breadth" />
+              <MetricTile
+                label="Top confidence"
+                value={tasks[0] ? getConfidenceLabel(tasks[0].score) : "No runs"}
+                helper="Based on score + verification"
+              />
+              <MetricTile label="Patch mode" value="Preview first" helper="No arbitrary auto-apply" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Operational attention queue</h2>
+                <p className="text-sm text-gray-600">Failed runs and review-needed tasks surface here first.</p>
+              </div>
+            </div>
+            {attentionTasks.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-sm text-gray-500">
+                No tasks currently need intervention.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {attentionTasks.map((task) => (
+                  <div key={task.id} className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-gray-900">{task.title}</p>
+                      <span className="text-xs text-gray-500">{formatTaskTimestamp(task.updatedAt)}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-600">{task.contextSummary || task.prompt}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
 
         {loading ? (
@@ -139,5 +201,15 @@ export default function BoardPage() {
         ) : null}
       </div>
     </main>
+  );
+}
+
+function MetricTile({ label, value, helper }: { label: string; value: string; helper: string }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</p>
+      <p className="mt-3 text-lg font-semibold text-gray-900">{value}</p>
+      <p className="mt-2 text-xs text-gray-500">{helper}</p>
+    </div>
   );
 }

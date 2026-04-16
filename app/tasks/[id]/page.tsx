@@ -8,6 +8,8 @@ import StatusBadge from "@/components/StatusBadge";
 import FileListPanel from "@/components/FileListPanel";
 import DiffPanel from "@/components/DiffPanel";
 import ExecutionPanel from "@/components/ExecutionPanel";
+import PromptPreviewPanel from "@/components/PromptPreviewPanel";
+import TaskWorkflowPanel from "@/components/TaskWorkflowPanel";
 import VerificationPanel from "@/components/VerificationPanel";
 import ScoreCard from "@/components/ScoreCard";
 import { fetchTask, formatTaskTimestamp, isTerminalStatus, retryTask, type TaskRecord, type TaskSource } from "@/components/task-api";
@@ -157,12 +159,14 @@ export default function TaskPage({ params }: TaskPageProps) {
 
         <div className="mb-8 grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-1">
+            <TaskWorkflowPanel task={task} />
             <FileListPanel task={task} />
             <ScoreCard task={task} />
           </div>
 
           <div className="space-y-6 lg:col-span-2">
-            <DiffPanel diff={task.diff} />
+            <PromptPreviewPanel task={task} />
+            <DiffPanel diff={task.diff} patchSummary={task.patchSummary} />
             <ExecutionPanel task={task} />
             <VerificationPanel task={task} />
           </div>

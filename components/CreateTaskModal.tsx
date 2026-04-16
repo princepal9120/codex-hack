@@ -24,7 +24,7 @@ const initialForm = {
   prompt: "",
   repoPath: ".",
   lintCommand: "npm run lint",
-  testCommand: "npm test",
+  testCommand: "python3 -m unittest discover -s tests",
 };
 
 export default function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
@@ -166,6 +166,10 @@ export default function CreateTaskModal({ open, onOpenChange }: CreateTaskModalP
               {error}
             </div>
           ) : null}
+
+          <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+            New tasks auto-run through the repo scanner, prompt builder, patch preview, and lint/test verification pipeline.
+          </div>
         </div>
 
         <DialogFooter>

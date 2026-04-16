@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { type TaskRecord, formatTaskTimestamp } from "@/components/task-api";
+import { type TaskRecord, formatTaskTimestamp, getConfidenceLabel } from "@/components/task-api";
 import { Badge } from "@/components/ui/Badge";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -21,6 +21,9 @@ export default function TaskCard({ task }: TaskCardProps) {
           {task.repoPath ? (
             <p className="mb-4 text-[11px] uppercase tracking-wide text-gray-400">Repo: {task.repoPath}</p>
           ) : null}
+          {task.contextSummary ? (
+            <p className="mb-4 line-clamp-3 text-xs text-gray-500">{task.contextSummary}</p>
+          ) : null}
         </div>
 
         <div className="border-t border-gray-100 pt-4">
@@ -28,8 +31,15 @@ export default function TaskCard({ task }: TaskCardProps) {
             <StatusBadge status={task.status} />
             <span className="text-xs text-gray-500">{formatTaskTimestamp(task.updatedAt)}</span>
           </div>
-          <div className="flex items-center justify-between gap-3 text-xs text-gray-500">
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
             <span>{task.selectedFiles.length} files</span>
+            <span>•</span>
+            <span>Lint {task.lintStatus}</span>
+            <span>•</span>
+            <span>Tests {task.testStatus}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3 text-xs text-gray-500">
+            <span>{getConfidenceLabel(task.score)}</span>
             {isScored ? (
               <Badge variant="primary" className="text-xs">
                 {task.score}/100

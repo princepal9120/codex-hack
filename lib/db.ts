@@ -3,6 +3,15 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 let database: DatabaseSync | null = null;
+const TASK_COLUMN_DEFINITIONS: Record<string, string> = {
+  prompt_preview: "TEXT NOT NULL DEFAULT ''",
+  context_summary: "TEXT NOT NULL DEFAULT ''",
+  execution_mode: "TEXT NOT NULL DEFAULT ''",
+  patch_summary: "TEXT NOT NULL DEFAULT ''",
+  lint_output: "TEXT NOT NULL DEFAULT ''",
+  test_output: "TEXT NOT NULL DEFAULT ''",
+  verification_notes: "TEXT NOT NULL DEFAULT ''",
+};
 
 function getDatabasePath() {
   const dataDir = path.join(process.cwd(), "data");
@@ -26,16 +35,37 @@ function initialize(db: DatabaseSync) {
       run_finished_at TEXT,
       score INTEGER NOT NULL DEFAULT 0,
       selected_files_json TEXT NOT NULL DEFAULT '[]',
+      prompt_preview TEXT NOT NULL DEFAULT '',
+      context_summary TEXT NOT NULL DEFAULT '',
+      execution_mode TEXT NOT NULL DEFAULT '',
       codex_output TEXT NOT NULL DEFAULT '',
       diff_output TEXT NOT NULL DEFAULT '',
+      patch_summary TEXT NOT NULL DEFAULT '',
       lint_status TEXT NOT NULL DEFAULT 'pending',
       test_status TEXT NOT NULL DEFAULT 'pending',
+      lint_output TEXT NOT NULL DEFAULT '',
+      test_output TEXT NOT NULL DEFAULT '',
+      verification_notes TEXT NOT NULL DEFAULT '',
       logs TEXT NOT NULL DEFAULT '',
       error_message TEXT,
       lint_command TEXT,
       test_command TEXT
     );
   `);
+
+  const existingColumns = new Set(
+    (
+      db.prepare("PRAGMA table_info(tasks)").all() as Array<{
+        name: string;
+      }>
+    ).map((column) => column.name)
+  );
+
+  for (const [columnName, definition] of Object.entries(TASK_COLUMN_DEFINITIONS)) {
+    if (!existingColumns.has(columnName)) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN ${columnName} ${definition};`);
+    }
+  }
 }
 
 export function getDb() {

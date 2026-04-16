@@ -36,6 +36,8 @@ class RankerTests(unittest.TestCase):
 
         self.assertEqual(ranked[0]['path'], 'app/api/login.ts')
         self.assertGreater(ranked[0]['score'], ranked[1]['score'])
+        self.assertIn('login', ranked[0]['matched_terms'])
+        self.assertTrue(ranked[0]['rationale'])
 
 
 class ScoreEngineTests(unittest.TestCase):

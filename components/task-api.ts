@@ -7,6 +7,9 @@ export type TaskSource = "api" | "mock";
 export interface TaskFile {
   path: string;
   score: number | null;
+  rationale?: string;
+  matchedTerms?: string[];
+  excerpt?: string;
 }
 
 export interface TaskRecord {
@@ -16,10 +19,17 @@ export interface TaskRecord {
   status: TaskStatus;
   score: number | null;
   selectedFiles: TaskFile[];
+  promptPreview: string;
+  contextSummary: string;
+  executionMode: string;
   codexOutput: string;
   diff: string;
+  patchSummary: string;
   lintStatus: VerificationStatus;
   testStatus: VerificationStatus;
+  lintOutput: string;
+  testOutput: string;
+  verificationNotes: string;
   logs: string;
   updatedAt: string;
   createdAt?: string;
@@ -175,13 +185,16 @@ function toSelectedFiles(value: unknown): TaskFile[] {
     return [];
   }
 
-  return value.flatMap((entry) => {
+  const selected: TaskFile[] = [];
+
+  for (const entry of value) {
     if (typeof entry === "string") {
-      return [{ path: entry, score: null }];
+      selected.push({ path: entry, score: null });
+      continue;
     }
 
     if (!entry || typeof entry !== "object") {
-      return [];
+      continue;
     }
 
     const record = entry as Record<string, unknown>;
@@ -192,17 +205,24 @@ function toSelectedFiles(value: unknown): TaskFile[] {
       "";
 
     if (!path) {
-      return [];
+      continue;
     }
 
     const rawScore = record.score ?? record.relevance ?? record.weight;
-    return [
-      {
-        path,
-        score: typeof rawScore === "number" ? rawScore : null,
-      },
-    ];
-  });
+    selected.push({
+      path,
+      score: typeof rawScore === "number" ? rawScore : null,
+      rationale: typeof record.rationale === "string" ? record.rationale : undefined,
+      matchedTerms: Array.isArray(record.matchedTerms)
+        ? record.matchedTerms.filter((value): value is string => typeof value === "string")
+        : Array.isArray(record.matched_terms)
+          ? record.matched_terms.filter((value): value is string => typeof value === "string")
+          : undefined,
+      excerpt: typeof record.excerpt === "string" ? record.excerpt : undefined,
+    });
+  }
+
+  return selected;
 }
 
 function joinLogParts(parts: Array<string | null | undefined>) {
@@ -266,13 +286,41 @@ function normalizeTask(raw: unknown): TaskRecord {
     status,
     score: typeof rawScore === "number" ? rawScore : null,
     selectedFiles,
+    promptPreview:
+      (typeof record.promptPreview === "string" && record.promptPreview) ||
+      (typeof record.prompt_preview === "string" && record.prompt_preview) ||
+      "",
+    contextSummary:
+      (typeof record.contextSummary === "string" && record.contextSummary) ||
+      (typeof record.context_summary === "string" && record.context_summary) ||
+      "",
+    executionMode:
+      (typeof record.executionMode === "string" && record.executionMode) ||
+      (typeof record.execution_mode === "string" && record.execution_mode) ||
+      "",
     codexOutput:
       (typeof record.codexOutput === "string" && record.codexOutput) ||
       (typeof record.codex_output === "string" && record.codex_output) ||
       "",
     diff,
+    patchSummary:
+      (typeof record.patchSummary === "string" && record.patchSummary) ||
+      (typeof record.patch_summary === "string" && record.patch_summary) ||
+      "",
     lintStatus,
     testStatus,
+    lintOutput:
+      (typeof record.lintOutput === "string" && record.lintOutput) ||
+      (typeof record.lint_output === "string" && record.lint_output) ||
+      "",
+    testOutput:
+      (typeof record.testOutput === "string" && record.testOutput) ||
+      (typeof record.test_output === "string" && record.test_output) ||
+      "",
+    verificationNotes:
+      (typeof record.verificationNotes === "string" && record.verificationNotes) ||
+      (typeof record.verification_notes === "string" && record.verification_notes) ||
+      "",
     logs,
     createdAt:
       (typeof record.createdAt === "string" && record.createdAt) ||
@@ -389,4 +437,20 @@ export async function retryTask(taskId: string): Promise<TaskRecord> {
   });
 
   return normalizeTask(getTaskPayload(payload));
+}
+
+export function getConfidenceLabel(score: number | null) {
+  if (score === null) {
+    return "Unscored";
+  }
+  if (score >= 90) {
+    return "High confidence";
+  }
+  if (score >= 70) {
+    return "Good confidence";
+  }
+  if (score >= 50) {
+    return "Needs review";
+  }
+  return "Low confidence";
 }

@@ -1,4 +1,4 @@
-import { type TaskRecord } from "@/components/task-api";
+import { getConfidenceLabel, type TaskRecord } from "@/components/task-api";
 
 interface ScoreCardProps {
   task: TaskRecord;
@@ -34,6 +34,7 @@ export default function ScoreCard({ task }: ScoreCardProps) {
               ? "Task is awaiting human review."
               : "CodexFlow is still working through the pipeline."}
       </p>
+      <p className="mt-2 text-xs font-medium text-gray-600">{getConfidenceLabel(task.score)}</p>
     </div>
   );
 }

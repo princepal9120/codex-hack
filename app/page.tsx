@@ -61,8 +61,8 @@ export default function LandingPage() {
                 Make Codex work on real codebases
               </h1>
               <p className="mb-8 max-w-3xl text-xl leading-relaxed text-gray-600">
-                CodexFlow turns a coding request into an observable pipeline: pick repo context, execute the task,
-                run lint and tests, and review the resulting diff in one place.
+                CodexFlow turns a coding request into an observable pipeline: scan the repository, rank relevant files,
+                build a patch-preview prompt, execute the run, and verify with lint and tests before trust.
               </p>
               <div className="flex flex-wrap items-center gap-4">
                 <Link href="/board">
@@ -108,10 +108,10 @@ export default function LandingPage() {
           <div className="grid gap-6 md:grid-cols-5">
             {[
               ["1", "Create Task", "Capture the coding request, repo path, and verification commands."],
-              ["2", "Select Context", "Attach the most relevant files so Codex sees the right slice of the repo."],
-              ["3", "Execute", "Run the task in a controlled environment with execution logs."],
+              ["2", "Rank Context", "Score the most relevant files, show why they were selected, and build a prompt preview."],
+              ["3", "Execute", "Run the task in a controlled environment with lifecycle visibility and execution logs."],
               ["4", "Verify", "Collect lint and test results so failures are explicit, not hand-waved."],
-              ["5", "Review", "Open the task detail page to inspect diff output and next actions."],
+              ["5", "Review", "Inspect prompt preview, diff preview, verification evidence, and final score."],
             ].map(([number, title, description]) => (
               <div key={number} className="text-center">
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-violet-600 text-lg font-bold text-white">
@@ -167,6 +167,7 @@ export default function LandingPage() {
                     <div key={file.path} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                       <p className="break-all text-xs font-mono text-gray-800">{file.path}</p>
                       {file.score !== null ? <p className="mt-1 text-xs text-gray-500">Relevance {file.score}%</p> : null}
+                      {file.rationale ? <p className="mt-2 text-xs text-gray-500">{file.rationale}</p> : null}
                     </div>
                   ))}
                   {featuredTask.selectedFiles.length === 0 ? (
