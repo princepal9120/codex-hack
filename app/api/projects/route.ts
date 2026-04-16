@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { loadCodexFlowConfig, resolveRepoPathWithinConfig } from "@/lib/config";
 import { createProject, listProjects } from "@/lib/server/project-store";
+import { ensureSeedTasks } from "@/lib/server/task-store";
 import type { CreateProjectInput } from "@/lib/task-types";
 
 export const runtime = "nodejs";
@@ -17,6 +18,7 @@ function normalizeInput(body: unknown): CreateProjectInput {
 }
 
 export async function GET() {
+  ensureSeedTasks();
   return NextResponse.json({ projects: listProjects() });
 }
 

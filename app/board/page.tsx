@@ -154,7 +154,16 @@ export default function BoardPage() {
         )}
       </div>
 
-      <CreateTaskModal open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+      <CreateTaskModal
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        redirectOnCreate={false}
+        onCreated={(task) => {
+          setTasks((current) => [task, ...current.filter((existing) => existing.id !== task.id)]);
+          setSource('api');
+          setMessage(null);
+        }}
+      />
     </Shell>
   );
 }

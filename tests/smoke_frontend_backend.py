@@ -135,6 +135,22 @@ class FrontendBackendSmokeTests(unittest.TestCase):
                 self.assertEqual(status_code, 200, msg=f"Expected {route} to return 200")
                 self.assertTrue(body, msg=f"Expected non-empty HTML response for {route}")
 
+            project_payload = request_json(
+                f"{server.base_url}/api/projects",
+                method="POST",
+                data={
+                    "name": f"Smoke project {uuid.uuid4().hex[:6]}",
+                    "repoPath": ".",
+                    "description": "Connectivity smoke project for issue/report/task flow.",
+                },
+                expected_status=201,
+            )
+            project = project_payload["project"]
+            self.assertIn("id", project)
+
+            projects_collection = request_json(f"{server.base_url}/api/projects")
+            self.assertTrue(any(item["id"] == project["id"] for item in projects_collection["projects"]))
+
             title = f"Connectivity smoke {uuid.uuid4().hex[:8]}"
             created_payload = request_json(
                 f"{server.base_url}/api/tasks",
@@ -142,6 +158,8 @@ class FrontendBackendSmokeTests(unittest.TestCase):
                 data={
                     "title": title,
                     "prompt": "Smoke test CodexFlow create, run, retry, and timeline connectivity.",
+                    "projectId": project["id"],
+                    "taskKind": "issue",
                     "repoPath": ".",
                 },
                 expected_status=201,
@@ -150,6 +168,8 @@ class FrontendBackendSmokeTests(unittest.TestCase):
             task_id = created_task["id"]
             self.assertEqual(created_task["title"], title)
             self.assertEqual(created_task["repoPath"], ".")
+            self.assertEqual(created_task["projectId"], project["id"])
+            self.assertEqual(created_task["taskKind"], "issue")
             self.assertIn(created_task["status"], {"queued", "running"})
 
             run_payload = request_json(
