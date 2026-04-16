@@ -1,38 +1,41 @@
 import Link from "next/link";
-import { Task } from "@/data/mockTasks";
+import { type TaskRecord, formatTaskTimestamp } from "@/components/task-api";
 import { Badge } from "@/components/ui/Badge";
 import StatusBadge from "@/components/StatusBadge";
 
 interface TaskCardProps {
-  task: Task;
+  task: TaskRecord;
 }
 
 export default function TaskCard({ task }: TaskCardProps) {
+  const isScored = task.score !== null && (task.status === "passed" || task.status === "failed" || task.status === "needs_review");
+
   return (
     <Link href={`/tasks/${task.id}`}>
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer h-full flex flex-col justify-between">
+      <div className="flex h-full cursor-pointer flex-col justify-between rounded-2xl border border-gray-200 bg-white p-5 transition-all hover:border-gray-300 hover:shadow-md">
         <div>
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <h3 className="font-semibold text-gray-900 text-sm leading-tight flex-1">
-              {task.title}
-            </h3>
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <h3 className="flex-1 text-sm font-semibold leading-tight text-gray-900">{task.title}</h3>
           </div>
-          <p className="text-xs text-gray-600 line-clamp-2 mb-4">
-            {task.prompt}
-          </p>
+          <p className="mb-4 line-clamp-3 text-xs text-gray-600">{task.prompt}</p>
+          {task.repoPath ? (
+            <p className="mb-4 text-[11px] uppercase tracking-wide text-gray-400">Repo: {task.repoPath}</p>
+          ) : null}
         </div>
 
-        <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-100">
-          <div className="flex items-center gap-2">
+        <div className="border-t border-gray-100 pt-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <StatusBadge status={task.status} />
+            <span className="text-xs text-gray-500">{formatTaskTimestamp(task.updatedAt)}</span>
           </div>
-          {task.status === "passed" || task.status === "failed" || task.status === "needs_review" ? (
-            <Badge variant="primary" className="text-xs">
-              {task.score}/100
-            </Badge>
-          ) : (
-            <span className="text-xs text-gray-500">{task.updatedAt}</span>
-          )}
+          <div className="flex items-center justify-between gap-3 text-xs text-gray-500">
+            <span>{task.selectedFiles.length} files</span>
+            {isScored ? (
+              <Badge variant="primary" className="text-xs">
+                {task.score}/100
+              </Badge>
+            ) : null}
+          </div>
         </div>
       </div>
     </Link>
