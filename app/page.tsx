@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Github, SearchCode, ShieldCheck, Sparkles, Workflow } from "lucide-react";
+import { ArrowRight, SearchCode, ShieldCheck, Sparkles, Workflow } from "lucide-react";
 
 import PageHeader from "@/components/PageHeader";
 import SurfaceCard from "@/components/SurfaceCard";
@@ -49,31 +49,33 @@ export default function LandingPage() {
     [tasks]
   );
 
+  const secondaryHref = featuredTask ? `/tasks/${featuredTask.id}` : "/board";
+  const secondaryLabel = featuredTask ? "Inspect a task run" : "See issue flow";
+
   return (
     <main className="mx-auto max-w-7xl px-6 py-8 pb-16">
       <PageHeader
-        eyebrow="Repo-aware execution"
-        title="Make AI coding runs feel trustworthy"
-        description="CodexFlow turns a request into a clear review flow: rank repository context, build a prompt preview, capture a patch artifact, and verify before anyone trusts the result."
-        badge={source === "api" ? "Live pipeline" : "API unavailable"}
+        eyebrow="Context-aware agent onboarding"
+        title="Stop cold-starting coding agents on every issue."
+        description="CodexFlow builds issue-specific repo context before an agent writes code, then lets teams review the selected files, patch preview, verification results, and change trail in one clear UI."
+        badge={source === "api" ? "Review-first AI coding" : "API unavailable"}
         actions={
           <>
             <Link href="/board">
               <Button className="gap-2">
-                Open task board
+                Open live board
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer">
+            <Link href={secondaryHref}>
               <Button variant="outline" className="gap-2">
-                <Github className="h-4 w-4" />
-                View GitHub
+                {secondaryLabel}
               </Button>
-            </a>
+            </Link>
           </>
         }
         meta={[
-          { label: "Tracked tasks", value: loading ? "Loading…" : String(summary.total) },
+          { label: "Tracked issues", value: loading ? "Loading…" : String(summary.total) },
           { label: "Running", value: String(summary.running) },
           { label: "Passed", value: String(summary.passed) },
           { label: "Needs review", value: String(summary.reviewed) },
@@ -85,21 +87,21 @@ export default function LandingPage() {
       <section className="mt-8 grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
         <SurfaceCard
           eyebrow="How it works"
-          title="A serious review path, not a magic black box"
-          description="Keep the scope tight: intake, repo-aware context, execution visibility, verification evidence, and one confidence signal."
+          title="From issue creation to reviewable execution"
+          description="Instead of letting the agent start blind, CodexFlow prepares the issue with repo-aware context and keeps the entire run visible."
         >
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StepCard icon={<Workflow className="h-5 w-5 text-[#0f766e]" />} title="Capture request" description="Title, prompt, repository path, and verification commands." />
-            <StepCard icon={<SearchCode className="h-5 w-5 text-[#0f766e]" />} title="Rank context" description="Select the most relevant files and explain why they matter." />
-            <StepCard icon={<Sparkles className="h-5 w-5 text-[#0f766e]" />} title="Generate patch" description="Build a prompt preview and capture the diff as the artifact." />
-            <StepCard icon={<ShieldCheck className="h-5 w-5 text-[#0f766e]" />} title="Verify trust" description="Record lint, tests, notes, logs, and a score before trust." />
+            <StepCard icon={<Workflow className="h-5 w-5 text-[#0f766e]" />} title="Capture issue" description="Create a task with the request, repo scope, and safe verification commands." />
+            <StepCard icon={<SearchCode className="h-5 w-5 text-[#0f766e]" />} title="Build context" description="Scan the repo, rank the most relevant files, and explain why they were selected." />
+            <StepCard icon={<Sparkles className="h-5 w-5 text-[#0f766e]" />} title="Generate patch" description="Turn the agent output into a patch preview before anyone trusts the change." />
+            <StepCard icon={<ShieldCheck className="h-5 w-5 text-[#0f766e]" />} title="Verify and track" description="Run verification, preserve logs, and track the issue through the full lifecycle." />
           </div>
         </SurfaceCard>
 
         <SurfaceCard
-          eyebrow="Live signal"
-          title="Featured task"
-          description="The same task record powers the board, task detail, prompt preview, and verification evidence."
+          eyebrow="Track the run"
+          title="One task record tells the whole story"
+          description="The board, task detail view, prompt preview, patch preview, and verification evidence all come from the same issue record."
         >
           {loading ? (
             <div className="rounded-[22px] border border-dashed border-[#e5ddd2] bg-white/70 px-5 py-14 text-center text-sm text-[#7e7569]">
@@ -114,13 +116,13 @@ export default function LandingPage() {
               <h2 className="mt-4 text-2xl font-semibold tracking-[-0.04em] text-[#1f1c17]">{featuredTask.title}</h2>
               <p className="mt-3 text-sm leading-6 text-[#6f675d]">{featuredTask.contextSummary || featuredTask.prompt}</p>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <SignalTile label="Selected files" value={String(featuredTask.selectedFiles.length)} helper="Ranked context bundle" />
+                <SignalTile label="Selected files" value={String(featuredTask.selectedFiles.length)} helper="Issue-specific context bundle" />
                 <SignalTile label="Confidence" value={getConfidenceLabel(featuredTask.score)} helper={featuredTask.score !== null ? `${featuredTask.score}/100 score` : "Awaiting score"} />
               </div>
               <div className="mt-5">
                 <Link href={`/tasks/${featuredTask.id}`}>
                   <Button variant="outline" className="gap-2">
-                    Open task detail
+                    Inspect task detail
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
@@ -135,19 +137,19 @@ export default function LandingPage() {
       </section>
 
       <section className="mt-6 grid gap-6 lg:grid-cols-3">
-        <SurfaceCard eyebrow="Context" title="Selected-file rationale" description="Surface why the system chose each file instead of hiding the context bundle behind the scenes.">
+        <SurfaceCard eyebrow="The real bottleneck" title="The problem isn’t generation. It’s context." description="Coding agents often start every issue without enough repo awareness, which leads to weaker patches and slower review.">
           <p className="text-sm leading-6 text-[#6f675d]">
-            CodexFlow keeps the differentiator front and center: selected file paths, matching terms, rationale, and snippets that justify the patch preview.
+            CodexFlow makes issue onboarding context-aware from the start by surfacing which files matter, why they matter, and what the agent saw before it wrote code.
           </p>
         </SurfaceCard>
-        <SurfaceCard eyebrow="Review artifact" title="Prompt + diff preview" description="Treat the prompt preview and patch as explicit review artifacts rather than hidden implementation details.">
+        <SurfaceCard eyebrow="Why it’s different" title="A context and review layer for coding agents" description="CodexFlow focuses on the missing parts of agent execution: onboarding context and visible evidence.">
           <p className="text-sm leading-6 text-[#6f675d]">
-            Every run exposes the generated prompt, context summary, patch summary, and raw diff so reviewers can audit the reasoning chain.
+            Every run exposes the selected files, prompt context, patch preview, and raw diff so reviewers can audit the execution instead of trusting a black-box response.
           </p>
         </SurfaceCard>
-        <SurfaceCard eyebrow="Verification" title="Trust backed by evidence" description="A run only becomes credible when lint, tests, notes, and logs all line up.">
+        <SurfaceCard eyebrow="Track every change" title="A review-first UI for agent-generated work" description="Teams can follow queued, running, review, passed, and failed states without losing visibility once the agent starts working.">
           <p className="text-sm leading-6 text-[#6f675d]">
-            Verification output is preserved alongside the task, so failures are visible and successful runs stay proof-oriented instead of hand-wavy.
+            Verification output, execution logs, and timeline events stay attached to the task so the resulting change is visible, reviewable, and easy to track through the UI.
           </p>
         </SurfaceCard>
       </section>
