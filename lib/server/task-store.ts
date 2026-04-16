@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
 
 import { getDb } from "@/lib/db";
-import type { CreateTaskInput, SelectedFile, TaskRecord, TaskStatus } from "@/lib/task-types";
+import type {
+  CreateTaskInput,
+  SelectedFile,
+  TaskEvent,
+  TaskFailureSignal,
+  TaskRecord,
+  TaskStatus,
+} from "@/lib/task-types";
 
 interface TaskRow {
   id: string;
@@ -30,6 +37,129 @@ interface TaskRow {
   error_message: string | null;
   lint_command: string | null;
   test_command: string | null;
+  timeline_json: string;
+  failure_signal_json: string | null;
+}
+
+function createTimelineEvent(
+  input: Omit<TaskEvent, "id"> & { id?: string }
+): TaskEvent {
+  return {
+    id: input.id ?? randomUUID(),
+    phase: input.phase,
+    kind: input.kind,
+    level: input.level,
+    title: input.title,
+    detail: input.detail,
+    createdAt: input.createdAt,
+    metadata: input.metadata,
+  };
+}
+
+function parseJson<T>(value: string | null | undefined, fallback: T): T {
+  if (!value) {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeTimeline(value: unknown): TaskEvent[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return [];
+    }
+
+    const record = entry as Record<string, unknown>;
+    const title = typeof record.title === "string" ? record.title : "Task update";
+    const detail =
+      (typeof record.detail === "string" && record.detail) ||
+      (typeof record.message === "string" && record.message) ||
+      "No additional detail captured.";
+    const createdAt =
+      (typeof record.createdAt === "string" && record.createdAt) ||
+      (typeof record.created_at === "string" && record.created_at) ||
+      new Date(0).toISOString();
+
+    return [
+      createTimelineEvent({
+        id: typeof record.id === "string" ? record.id : undefined,
+        phase:
+          record.phase === "task" ||
+          record.phase === "context" ||
+          record.phase === "execution" ||
+          record.phase === "verification"
+            ? record.phase
+            : "execution",
+        kind:
+          record.kind === "task_created" ||
+          record.kind === "task_requeued" ||
+          record.kind === "run_started" ||
+          record.kind === "context_selected" ||
+          record.kind === "patch_generated" ||
+          record.kind === "verification_completed" ||
+          record.kind === "run_completed" ||
+          record.kind === "run_failed"
+            ? record.kind
+            : "run_completed",
+        level:
+          record.level === "info" ||
+          record.level === "success" ||
+          record.level === "warning" ||
+          record.level === "error"
+            ? record.level
+            : "info",
+        title,
+        detail,
+        createdAt,
+        metadata:
+          record.metadata && typeof record.metadata === "object"
+            ? (record.metadata as TaskEvent["metadata"])
+            : undefined,
+      }),
+    ];
+  });
+}
+
+function normalizeFailureSignal(value: unknown): TaskFailureSignal | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const category =
+    record.category === "verification" ||
+    record.category === "execution" ||
+    record.category === "empty_patch" ||
+    record.category === "unknown"
+      ? record.category
+      : null;
+
+  if (!category) {
+    return null;
+  }
+
+  return {
+    category,
+    summary: typeof record.summary === "string" ? record.summary : "Task failed",
+    detail: typeof record.detail === "string" ? record.detail : "No failure detail captured.",
+    detectedAt:
+      (typeof record.detectedAt === "string" && record.detectedAt) ||
+      (typeof record.detected_at === "string" && record.detected_at) ||
+      new Date(0).toISOString(),
+  };
+}
+
+function appendTaskEvent(task: TaskRecord, event: TaskEvent) {
+  return [...task.timeline, event];
 }
 
 const seedTasks: Array<Omit<TaskRecord, "id">> = [
@@ -55,7 +185,7 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
         score: 88,
         rationale: "Rate limit helper aligns with the change request and likely holds shared enforcement logic.",
         matchedTerms: ["rate", "limit"],
-      }
+      },
     ],
     promptPreview: "System instruction...\nTask title: Add rate limiting to login endpoint\nSelected context: login route + rate-limit helper",
     contextSummary: "CodexFlow selected the auth route plus the shared rate-limit helper because both path names and code excerpts matched the prompt.",
@@ -71,7 +201,51 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
     logs: "Queued sample task for the board demo.",
     errorMessage: null,
     lintCommand: null,
-    testCommand: null
+    testCommand: null,
+    timeline: [
+      createTimelineEvent({
+        phase: "task",
+        kind: "task_created",
+        level: "info",
+        title: "Task created",
+        detail: "Request captured with repo path and verification commands.",
+        createdAt: new Date("2026-04-15T10:00:00.000Z").toISOString(),
+      }),
+      createTimelineEvent({
+        phase: "execution",
+        kind: "run_started",
+        level: "info",
+        title: "Run started",
+        detail: "CodexFlow started a preview-first execution for the task.",
+        createdAt: new Date("2026-04-15T10:00:30.000Z").toISOString(),
+      }),
+      createTimelineEvent({
+        phase: "context",
+        kind: "context_selected",
+        level: "success",
+        title: "Context selected",
+        detail: "Ranked 2 files for prompt context before patch generation.",
+        createdAt: new Date("2026-04-15T10:01:00.000Z").toISOString(),
+        metadata: { selectedFiles: 2 },
+      }),
+      createTimelineEvent({
+        phase: "execution",
+        kind: "patch_generated",
+        level: "success",
+        title: "Patch preview ready",
+        detail: "A diff preview was produced and is ready for human review.",
+        createdAt: new Date("2026-04-15T10:01:30.000Z").toISOString(),
+      }),
+      createTimelineEvent({
+        phase: "verification",
+        kind: "verification_completed",
+        level: "warning",
+        title: "Verification pending",
+        detail: "Lint and tests were not run for this sample task.",
+        createdAt: new Date("2026-04-15T10:02:00.000Z").toISOString(),
+      }),
+    ],
+    failureSignal: null,
   },
   {
     title: "Fix flaky task detail loading state",
@@ -95,7 +269,7 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
         score: 82,
         rationale: "Verification UI is adjacent to the stale-data bug and helps validate post-refresh behavior.",
         matchedTerms: ["refresh", "verification"],
-      }
+      },
     ],
     promptPreview: "System instruction...\nTask title: Fix flaky task detail loading state\nSelected context: task detail page + verification panel",
     contextSummary: "The route page was ranked highest because it contains the loading state; the verification panel was included for adjacent refresh behavior.",
@@ -111,7 +285,59 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
     logs: "✓ Lint passed\n✓ Tests passed\n✓ Patch preview generated",
     errorMessage: null,
     lintCommand: null,
-    testCommand: null
+    testCommand: null,
+    timeline: [
+      createTimelineEvent({
+        phase: "task",
+        kind: "task_created",
+        level: "info",
+        title: "Task created",
+        detail: "Task queued for execution with verification commands.",
+        createdAt: new Date("2026-04-14T12:15:00.000Z").toISOString(),
+      }),
+      createTimelineEvent({
+        phase: "execution",
+        kind: "run_started",
+        level: "info",
+        title: "Run started",
+        detail: "CodexFlow began scanning the repository before prompt construction.",
+        createdAt: new Date("2026-04-14T12:15:30.000Z").toISOString(),
+      }),
+      createTimelineEvent({
+        phase: "context",
+        kind: "context_selected",
+        level: "success",
+        title: "Context selected",
+        detail: "The task detail page and verification panel ranked highest for the prompt.",
+        createdAt: new Date("2026-04-14T12:16:00.000Z").toISOString(),
+        metadata: { selectedFiles: 2 },
+      }),
+      createTimelineEvent({
+        phase: "execution",
+        kind: "patch_generated",
+        level: "success",
+        title: "Patch preview ready",
+        detail: "A targeted diff was produced for inspection before trust.",
+        createdAt: new Date("2026-04-14T12:16:45.000Z").toISOString(),
+      }),
+      createTimelineEvent({
+        phase: "verification",
+        kind: "verification_completed",
+        level: "success",
+        title: "Verification passed",
+        detail: "Lint and tests both passed for the generated preview.",
+        createdAt: new Date("2026-04-14T12:18:00.000Z").toISOString(),
+      }),
+      createTimelineEvent({
+        phase: "task",
+        kind: "run_completed",
+        level: "success",
+        title: "Run completed",
+        detail: "The task completed successfully with a verified patch preview.",
+        createdAt: new Date("2026-04-14T12:18:00.000Z").toISOString(),
+      }),
+    ],
+    failureSignal: null,
   },
   {
     title: "Refactor repo scanner ignore rules",
@@ -135,7 +361,7 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
         score: 75,
         rationale: "Repo-level config may define scanning limits and ignore-adjacent behavior.",
         matchedTerms: ["config"],
-      }
+      },
     ],
     promptPreview: "System instruction...\nTask title: Refactor repo scanner ignore rules\nSelected context: scanner module + repo config",
     contextSummary: "CodexFlow prioritized the scanner module and config because both likely influence indexing and ignored outputs.",
@@ -151,8 +377,65 @@ const seedTasks: Array<Omit<TaskRecord, "id">> = [
     logs: "Command failed: scanner hit a missing import during verification.",
     errorMessage: "Verification failed during sample seed generation.",
     lintCommand: null,
-    testCommand: null
-  }
+    testCommand: null,
+    timeline: [
+      createTimelineEvent({
+        phase: "task",
+        kind: "task_created",
+        level: "info",
+        title: "Task created",
+        detail: "Task queued for execution with scanner-focused verification.",
+        createdAt: new Date("2026-04-13T08:30:00.000Z").toISOString(),
+      }),
+      createTimelineEvent({
+        phase: "execution",
+        kind: "run_started",
+        level: "info",
+        title: "Run started",
+        detail: "CodexFlow started scanning repository files.",
+        createdAt: new Date("2026-04-13T08:31:00.000Z").toISOString(),
+      }),
+      createTimelineEvent({
+        phase: "context",
+        kind: "context_selected",
+        level: "success",
+        title: "Context selected",
+        detail: "The repo scanner implementation and config were selected for prompt context.",
+        createdAt: new Date("2026-04-13T08:32:00.000Z").toISOString(),
+        metadata: { selectedFiles: 2 },
+      }),
+      createTimelineEvent({
+        phase: "execution",
+        kind: "patch_generated",
+        level: "warning",
+        title: "Patch preview ready",
+        detail: "A patch preview was generated, but verification still needed to run.",
+        createdAt: new Date("2026-04-13T08:33:00.000Z").toISOString(),
+      }),
+      createTimelineEvent({
+        phase: "verification",
+        kind: "verification_completed",
+        level: "error",
+        title: "Verification failed",
+        detail: "Lint and tests both failed after preview generation.",
+        createdAt: new Date("2026-04-13T08:36:00.000Z").toISOString(),
+      }),
+      createTimelineEvent({
+        phase: "task",
+        kind: "run_failed",
+        level: "error",
+        title: "Run failed",
+        detail: "The task ended in a failed state and needs investigation.",
+        createdAt: new Date("2026-04-13T08:36:00.000Z").toISOString(),
+      }),
+    ],
+    failureSignal: {
+      category: "verification",
+      summary: "Verification failed after patch generation",
+      detail: "The generated preview existed, but lint and test checks both failed for the scanner update.",
+      detectedAt: new Date("2026-04-13T08:36:00.000Z").toISOString(),
+    },
+  },
 ];
 
 function rowToTask(row: TaskRow): TaskRecord {
@@ -167,7 +450,7 @@ function rowToTask(row: TaskRow): TaskRecord {
     runStartedAt: row.run_started_at,
     runFinishedAt: row.run_finished_at,
     score: row.score,
-    selectedFiles: JSON.parse(row.selected_files_json) as SelectedFile[],
+    selectedFiles: parseJson(row.selected_files_json, []) as SelectedFile[],
     promptPreview: row.prompt_preview,
     contextSummary: row.context_summary,
     executionMode: row.execution_mode,
@@ -183,6 +466,8 @@ function rowToTask(row: TaskRow): TaskRecord {
     errorMessage: row.error_message,
     lintCommand: row.lint_command,
     testCommand: row.test_command,
+    timeline: normalizeTimeline(parseJson(row.timeline_json, [])),
+    failureSignal: normalizeFailureSignal(parseJson(row.failure_signal_json, null)),
   };
 }
 
@@ -214,6 +499,8 @@ function taskToParams(task: TaskRecord) {
     error_message: task.errorMessage,
     lint_command: task.lintCommand,
     test_command: task.testCommand,
+    timeline_json: JSON.stringify(task.timeline),
+    failure_signal_json: task.failureSignal ? JSON.stringify(task.failureSignal) : null,
   };
 }
 
@@ -230,12 +517,12 @@ export function ensureSeedTasks() {
       id, title, prompt, status, repo_path, created_at, updated_at, run_started_at, run_finished_at,
       score, selected_files_json, prompt_preview, context_summary, execution_mode, codex_output, diff_output, patch_summary,
       lint_status, test_status, lint_output, test_output, verification_notes, logs,
-      error_message, lint_command, test_command
+      error_message, lint_command, test_command, timeline_json, failure_signal_json
     ) VALUES (
       :id, :title, :prompt, :status, :repo_path, :created_at, :updated_at, :run_started_at, :run_finished_at,
       :score, :selected_files_json, :prompt_preview, :context_summary, :execution_mode, :codex_output, :diff_output, :patch_summary,
       :lint_status, :test_status, :lint_output, :test_output, :verification_notes, :logs,
-      :error_message, :lint_command, :test_command
+      :error_message, :lint_command, :test_command, :timeline_json, :failure_signal_json
     )
   `);
 
@@ -288,6 +575,21 @@ export function createTask(input: CreateTaskInput) {
     errorMessage: null,
     lintCommand: input.lintCommand?.trim() || null,
     testCommand: input.testCommand?.trim() || null,
+    timeline: [
+      createTimelineEvent({
+        phase: "task",
+        kind: "task_created",
+        level: "info",
+        title: "Task created",
+        detail: "Task captured and queued for preview-first execution.",
+        createdAt: now,
+        metadata: {
+          hasLintCommand: Boolean(input.lintCommand?.trim()),
+          hasTestCommand: Boolean(input.testCommand?.trim()),
+        },
+      }),
+    ],
+    failureSignal: null,
   };
 
   db.prepare(`
@@ -295,12 +597,12 @@ export function createTask(input: CreateTaskInput) {
       id, title, prompt, status, repo_path, created_at, updated_at, run_started_at, run_finished_at,
       score, selected_files_json, prompt_preview, context_summary, execution_mode, codex_output, diff_output, patch_summary,
       lint_status, test_status, lint_output, test_output, verification_notes, logs,
-      error_message, lint_command, test_command
+      error_message, lint_command, test_command, timeline_json, failure_signal_json
     ) VALUES (
       :id, :title, :prompt, :status, :repo_path, :created_at, :updated_at, :run_started_at, :run_finished_at,
       :score, :selected_files_json, :prompt_preview, :context_summary, :execution_mode, :codex_output, :diff_output, :patch_summary,
       :lint_status, :test_status, :lint_output, :test_output, :verification_notes, :logs,
-      :error_message, :lint_command, :test_command
+      :error_message, :lint_command, :test_command, :timeline_json, :failure_signal_json
     )
   `).run(taskToParams(task));
 
@@ -347,7 +649,9 @@ export function updateTask(id: string, updates: Partial<TaskRecord>) {
       logs = :logs,
       error_message = :error_message,
       lint_command = :lint_command,
-      test_command = :test_command
+      test_command = :test_command,
+      timeline_json = :timeline_json,
+      failure_signal_json = :failure_signal_json
     WHERE id = :id
   `).run(taskToParams(next));
 
@@ -355,6 +659,12 @@ export function updateTask(id: string, updates: Partial<TaskRecord>) {
 }
 
 export function resetTaskForRetry(id: string) {
+  const current = getTaskById(id);
+
+  if (!current) {
+    return null;
+  }
+
   return updateTask(id, {
     status: "queued",
     score: 0,
@@ -374,5 +684,32 @@ export function resetTaskForRetry(id: string) {
     errorMessage: null,
     runStartedAt: null,
     runFinishedAt: null,
+    timeline: appendTaskEvent(
+      current,
+      createTimelineEvent({
+        phase: "task",
+        kind: "task_requeued",
+        level: "info",
+        title: "Task re-queued",
+        detail: "A fresh preview-first run was requested.",
+        createdAt: new Date().toISOString(),
+      })
+    ),
+    failureSignal: null,
   });
+}
+
+export function getTaskTimeline(id: string) {
+  const task = getTaskById(id);
+
+  if (!task) {
+    return null;
+  }
+
+  return {
+    taskId: task.id,
+    status: task.status,
+    timeline: task.timeline,
+    failureSignal: task.failureSignal,
+  };
 }

@@ -11,6 +11,8 @@ const TASK_COLUMN_DEFINITIONS: Record<string, string> = {
   lint_output: "TEXT NOT NULL DEFAULT ''",
   test_output: "TEXT NOT NULL DEFAULT ''",
   verification_notes: "TEXT NOT NULL DEFAULT ''",
+  timeline_json: "TEXT NOT NULL DEFAULT '[]'",
+  failure_signal_json: "TEXT",
 };
 
 function getDatabasePath() {
@@ -49,7 +51,9 @@ function initialize(db: DatabaseSync) {
       logs TEXT NOT NULL DEFAULT '',
       error_message TEXT,
       lint_command TEXT,
-      test_command TEXT
+      test_command TEXT,
+      timeline_json TEXT NOT NULL DEFAULT '[]',
+      failure_signal_json TEXT
     );
   `);
 

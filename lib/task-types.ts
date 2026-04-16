@@ -1,5 +1,17 @@
 export type TaskStatus = "queued" | "running" | "passed" | "failed" | "needs_review";
 export type CheckStatus = "passed" | "failed" | "pending";
+export type TaskEventPhase = "task" | "context" | "execution" | "verification";
+export type TaskEventLevel = "info" | "success" | "warning" | "error";
+export type TaskEventKind =
+  | "task_created"
+  | "task_requeued"
+  | "run_started"
+  | "context_selected"
+  | "patch_generated"
+  | "verification_completed"
+  | "run_completed"
+  | "run_failed";
+export type FailureCategory = "verification" | "execution" | "empty_patch" | "unknown";
 
 export interface SelectedFile {
   path: string;
@@ -7,6 +19,24 @@ export interface SelectedFile {
   excerpt?: string;
   rationale?: string;
   matchedTerms?: string[];
+}
+
+export interface TaskEvent {
+  id: string;
+  phase: TaskEventPhase;
+  kind: TaskEventKind;
+  level: TaskEventLevel;
+  title: string;
+  detail: string;
+  createdAt: string;
+  metadata?: Record<string, string | number | boolean | null>;
+}
+
+export interface TaskFailureSignal {
+  category: FailureCategory;
+  summary: string;
+  detail: string;
+  detectedAt: string;
 }
 
 export interface TaskRecord {
@@ -36,6 +66,8 @@ export interface TaskRecord {
   errorMessage: string | null;
   lintCommand: string | null;
   testCommand: string | null;
+  timeline: TaskEvent[];
+  failureSignal: TaskFailureSignal | null;
 }
 
 export interface CreateTaskInput {
@@ -63,4 +95,6 @@ export interface RunTaskResult {
   verificationNotes: string;
   logs: string;
   errorMessage?: string | null;
+  timeline?: TaskEvent[];
+  failureSignal?: TaskFailureSignal | null;
 }
