@@ -30,6 +30,42 @@ import StatusPill from "@/features/dashboard/status-pill";
 
 interface TaskDetailProps { id: string; }
 
+function isMockExecution(task: TaskRecord) {
+  return task.executionMode.trim().toLowerCase() === "mock";
+}
+
+function getTaskSourceBadge(task: TaskRecord, source: TaskSource) {
+  if (source === "mock") {
+    return "Demo data";
+  }
+
+  if (isMockExecution(task)) {
+    return "Sample task";
+  }
+
+  return "Live task";
+}
+
+function getTaskSourceNotice(task: TaskRecord, source: TaskSource) {
+  if (source === "mock") {
+    return {
+      title: "Bundled demo data",
+      body: "The task API is unavailable right now, so this detail view is showing bundled demo content instead of live board data.",
+      className: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+
+  if (isMockExecution(task)) {
+    return {
+      title: "Sample task on a live route",
+      body: "This task was loaded from the live board, but its execution history and verification output are demo/mock artifacts for the hackathon sample dataset.",
+      className: "border-violet-200 bg-violet-50 text-violet-900",
+    };
+  }
+
+  return null;
+}
+
 export default function TaskDetail({ id }: TaskDetailProps) {
   const [task, setTask] = useState<TaskRecord | null>(null);
   const [source, setSource] = useState<TaskSource>("api");
@@ -53,7 +89,7 @@ export default function TaskDetail({ id }: TaskDetailProps) {
 
   useEffect(() => {
     if (!task || isTerminalStatus(task.status)) return;
-    const interval = window.setInterval(() => { void loadTask(true); }, 3000);
+    const interval = window.setInterval(() => { void loadTask(true); }, TASK_REFRESH_INTERVAL_MS);
     return () => window.clearInterval(interval);
   }, [loadTask, task]);
 
@@ -147,6 +183,8 @@ export default function TaskDetail({ id }: TaskDetailProps) {
     );
   }
 
+  const sourceNotice = getTaskSourceNotice(task, source);
+
   return (
     <main className="mx-auto max-w-7xl px-6 py-8 pb-16">
       <div className="mb-6 flex flex-wrap items-center gap-3">
@@ -161,17 +199,28 @@ export default function TaskDetail({ id }: TaskDetailProps) {
         eyebrow={getTaskIdentifier(task.id)}
         title={task.title}
         description={task.prompt}
-        badge={source === "api" ? "Live task" : "API unavailable"}
+        badge={getTaskSourceBadge(task, source)}
         meta={summaryMeta}
         actions={
-          <Button className="gap-2" onClick={handleRetry} disabled={retrying}>
-            <RotateCcw className={`h-4 w-4 ${retrying ? "animate-spin" : ""}`} />
-            {retrying ? "Retrying…" : "Retry task"}
-          </Button>
+          action ? (
+            <Button className="gap-2" onClick={action.onClick} disabled={action.disabled}>
+              <action.icon className={`h-4 w-4 ${action.disabled ? "animate-spin" : ""}`} />
+              {action.label}
+            </Button>
+          ) : undefined
         }
       />
 
-      {message && <div className="mt-6 rounded-[var(--radius)] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{message}</div>}
+      {sourceNotice ? (
+        <div className={`mt-6 rounded-xl border px-4 py-3 ${sourceNotice.className}`}>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em]">{sourceNotice.title}</p>
+          <p className="mt-1.5 text-sm leading-6">{sourceNotice.body}</p>
+        </div>
+      ) : null}
+
+      {message ? (
+        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{message}</div>
+      ) : null}
 
       <section className="mt-6 grid gap-6 xl:grid-cols-[0.86fr_1.14fr]">
         <div className="space-y-6">

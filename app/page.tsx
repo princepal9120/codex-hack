@@ -20,7 +20,6 @@ import {
 
 import { Button } from "@/components/ui/Button";
 import {
-  TASK_REFRESH_INTERVAL_MS,
   fetchTasks,
   formatTaskTimestamp,
   getConfidenceLabel,

@@ -1,29 +1,19 @@
 'use client';
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Loader2, Plus, Sparkles } from "lucide-react";
 
 import CreateTaskModal from "@/components/CreateTaskModal";
 import TaskColumn from "@/components/TaskColumn";
-import {
-  fetchTask,
-  fetchTasks,
-  type TaskRecord,
-  type TaskSource,
-  type TaskStatus,
-} from "@/components/task-api";
+import { fetchTasks, type TaskRecord, type TaskSource, type TaskStatus } from "@/components/task-api";
 import { Button } from "@/components/ui/Button";
-import Shell from "@/components/Shell";
 
 const columnOrder: TaskStatus[] = ["queued", "running", "passed", "failed", "needs_review"];
 
 export default function BoardPage() {
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshingList, setRefreshingList] = useState(false);
-  const [refreshingDetail, setRefreshingDetail] = useState(false);
-  const [runningTask, setRunningTask] = useState(false);
-  const [retryingTask, setRetryingTask] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [source, setSource] = useState<TaskSource>("api");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -55,9 +45,9 @@ export default function BoardPage() {
   );
 
   return (
-    <Shell>
-      {/* Board header */}
-      <header className="flex items-center justify-between gap-4 border-b border-border bg-background px-6 py-4">
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col">
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border bg-background px-6 py-4">
         <div>
           <h1 className="text-lg font-bold tracking-tight text-foreground">Task Board</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
@@ -66,6 +56,9 @@ export default function BoardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link href="/">
+            <Button size="sm" variant="outline">Back to landing</Button>
+          </Link>
           <Button size="sm" className="gap-2" onClick={() => setIsCreateOpen(true)}>
             <Plus className="h-4 w-4" />
             New Task
@@ -109,6 +102,7 @@ export default function BoardPage() {
       </div>
 
       <CreateTaskModal open={isCreateOpen} onOpenChange={setIsCreateOpen} />
-    </Shell>
+      </div>
+    </main>
   );
 }
